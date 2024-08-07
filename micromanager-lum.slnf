@@ -1,0 +1,17 @@
+{
+  "solution": {
+    "path": "micromanager.sln",
+    "projects": [
+      "DeviceAdapters\\Arduino\\Arduino.vcxproj",
+      "DeviceAdapters\\Basler\\BaslerPylon.vcxproj",
+      "DeviceAdapters\\DemoCamera\\DemoCamera.vcxproj",
+      "DeviceAdapters\\FreeSerialPort\\FreeSerialPort.vcxproj",
+      "DeviceAdapters\\Okolab\\Okolab.vcxproj",
+      "DeviceAdapters\\USBManager\\USBManager.vcxproj",
+      "DeviceAdapters\\UserDefinedSerial\\UserDefinedSerial.vcxproj",
+      "MMDevice\\MMDevice-SharedRuntime.vcxproj",
+      "MMDevice\\MMDevice-StaticRuntime.vcxproj",
+      "SecretDeviceAdapters\\HamamatsuHam\\HamamatsuHam.vcxproj"
+    ]
+  }
+}
