@@ -85,7 +85,7 @@ private:
 	bool shutterState;
 	std::vector<bool> channelStates; // cache for channel states
 
-	int RetrieveError(void* engine);
+	int RetrieveError();
 	int ZeroAll();
 	int ApplyStates();
 	int TurnAllOff();

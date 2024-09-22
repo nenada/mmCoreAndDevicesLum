@@ -5,6 +5,7 @@
       "DeviceAdapters\\Arduino\\Arduino.vcxproj",
       "DeviceAdapters\\Basler\\BaslerPylon.vcxproj",
       "DeviceAdapters\\DemoCamera\\DemoCamera.vcxproj",
+      "DeviceAdapters\\Lumencor\\Lumencor.vcxproj",
       "DeviceAdapters\\FreeSerialPort\\FreeSerialPort.vcxproj",
       "DeviceAdapters\\Okolab\\Okolab.vcxproj",
       "DeviceAdapters\\USBManager\\USBManager.vcxproj",
