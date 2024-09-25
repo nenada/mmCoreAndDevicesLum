@@ -37,7 +37,11 @@
 #define ERR_INTERNAL						 13004
 
 static const char* g_LightEngine = "LightEngine";
+static const char* g_TTLSwitch = "TTLSwitch";
+static const char* g_DoverStage = "DoverStage";
+static const char* g_DoverXYStage = "DoverXYStage";
 static const char* g_Prop_Connection = "Connection";
+static const char* g_Prop_ComPort = "TTLGENComPort";
 static const char* g_Prop_Model = "Model";
 static const char* g_Prop_ModelName = "LEModel";
 static const char* g_Prop_SerialNumber = "SerialNumber";
@@ -91,5 +95,132 @@ private:
 	int TurnAllOff();
 };
 
+//////////////////////////////////////////////////////////////////////////////
+// CDoverStage
+// Single-axis Dover stage
+//////////////////////////////////////////////////////////////////////////////
+
+class CDoverStage : public CStageBase<CDoverStage>
+{
+public:
+   CDoverStage();
+   ~CDoverStage();
+
+   bool Busy();
+   void GetName(char* pszName) const;
+
+   int Initialize();
+   int Shutdown();
+
+   // Stage API
+   int Home();
+   int SetPositionUm(double pos);
+   int GetPositionUm(double& pos);
+   double GetStepSize();
+   int SetPositionSteps(long steps);
+   int GetPositionSteps(long& steps);
+   int SetOrigin();
+   int GetLimits(double& lower, double& upper);
+
+   bool IsContinuousFocusDrive() const { return false; }
+   int IsStageSequenceable(bool& isSequenceable) const { isSequenceable = false; return DEVICE_OK; }
+
+
+   // action interface
+   // ----------------
+   int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
+
+private:
+};
+
+//////////////////////////////////////////////////////////////////////////////
+// CDoverXYStage
+// Dover XY stage
+//////////////////////////////////////////////////////////////////////////////
+
+class CDoverXYStage : public CXYStageBase<CDoverXYStage>
+{
+public:
+   CDoverXYStage();
+   ~CDoverXYStage();
+
+   bool Busy();
+   void GetName(char* pszName) const;
+
+   int Initialize();
+   int Shutdown();
+
+   virtual double GetStepSize();
+   virtual int SetPositionSteps(long x, long y);
+   virtual int GetPositionSteps(long& x, long& y);
+   virtual int SetRelativePositionSteps(long x, long y);
+   virtual int Home();
+   virtual int Stop();
+
+   virtual int SetOrigin();
+
+   virtual int GetLimitsUm(double& xMin, double& xMax, double& yMin, double& yMax);
+   virtual int GetStepLimits(long& /*xMin*/, long& /*xMax*/, long& /*yMin*/, long& /*yMax*/);
+   double GetStepSizeXUm();
+   double GetStepSizeYUm();
+
+   int IsXYStageSequenceable(bool& isSequenceable) const { isSequenceable = false; return DEVICE_OK; }
+
+   // action interface
+   // ----------------
+   int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
+
+private:
+};
+
+//////////////////////////////////////////////////////////////////////////////
+// CTTLSwitch
+// TTL controlled light source with hardware timing and sequencing
+// Requires TTLGEN device attached to the light engine
+//////////////////////////////////////////////////////////////////////////////
+
+class CTTLSwitch : public CStateDeviceBase<CTTLSwitch>
+{
+public:
+   CTTLSwitch();
+   ~CTTLSwitch();
+
+   // MMDevice API
+   // ------------
+   int Initialize();
+   int Shutdown();
+
+   void GetName(char* pszName) const;
+   bool Busy() { return false; }
+
+   unsigned long GetNumberOfPositions()const { return (unsigned long)channels.size(); }
+
+   // action interface
+   // ----------------
+   int OnState(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnSequence(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct);
+
+private:
+   int OpenPort(const char* pszName, long lnValue);
+   int WriteToPort(long lnValue);
+   int ClosePort();
+   int LoadSequence(unsigned size, unsigned char* seq);
+
+   void* engine;
+   bool initialized;
+   std::string model;
+   std::string connection;
+   std::vector<std::string> channels;
+   std::map<std::string, int> channelLookup;
+   bool shutterState;
+   std::vector<bool> channelStates; // cache for channel states
+
+   int RetrieveError();
+   int ZeroAll();
+   int ApplyStates();
+   int TurnAllOff();
+};
 
 #endif //_LUMENCOR_H_

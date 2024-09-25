@@ -48,6 +48,14 @@ MODULE_API MM::Device* CreateDevice(const char* deviceName)
    {
       return new LightEngine();
    }
+	else if (strcmp(deviceName, g_TTLSwitch) == 0)
+	{
+		return new CTTLSwitch();
+	}
+	else if (strcmp(deviceName, g_DoverStage) == 0)
+	{
+		return nullptr; // new CDoverStage();
+	}
 
    return 0;
 }

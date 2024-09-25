@@ -95,6 +95,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Lumencor.cpp" />
+    <ClCompile Include="TTLSwitch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Lumencor.h" />
