@@ -291,6 +291,11 @@ int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
    return DEVICE_OK;
 }
 
+int CTTLSwitch::OnPort(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	return 0;
+}
+
 
 // Get error from light engine
 int CTTLSwitch::RetrieveError()

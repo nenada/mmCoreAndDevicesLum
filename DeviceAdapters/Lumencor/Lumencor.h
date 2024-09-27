@@ -36,6 +36,9 @@
 #define ERR_INIT							 13003
 #define ERR_INTERNAL						 13004
 
+#define ERR_DOVER_CMD_FAILED         13005
+#define ERR_DOVER_HOME_FAILED        13006
+
 static const char* g_LightEngine = "LightEngine";
 static const char* g_TTLSwitch = "TTLSwitch";
 static const char* g_DoverStage = "DoverStage";
@@ -48,6 +51,12 @@ static const char* g_Prop_SerialNumber = "SerialNumber";
 static const char* g_Prop_FirmwareVersion = "FirmwareVersion";
 
 class LightEngineAPI;
+
+namespace dover
+{
+   class XYStage;
+   class DOF5Stage;
+}
 
 class LightEngine : public CShutterBase<LightEngine>
 {
@@ -131,6 +140,7 @@ public:
    int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
+   dover::DOF5Stage* zStage;
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -171,6 +181,8 @@ public:
    int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
+   dover::XYStage* xyStage;
+
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -201,6 +213,7 @@ public:
    int OnSequence(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnPort(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    int OpenPort(const char* pszName, long lnValue);

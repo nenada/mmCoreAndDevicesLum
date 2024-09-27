@@ -54,7 +54,7 @@ MODULE_API MM::Device* CreateDevice(const char* deviceName)
 	}
 	else if (strcmp(deviceName, g_DoverStage) == 0)
 	{
-		return nullptr; // new CDoverStage();
+		return new CDoverStage();
 	}
 
    return 0;
@@ -504,3 +504,4 @@ int LightEngine::ApplyStates()
 
 	return DEVICE_OK;
 }
+

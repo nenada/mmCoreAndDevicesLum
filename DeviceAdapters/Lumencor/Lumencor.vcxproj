@@ -61,14 +61,14 @@
       <PrecompiledHeader>
       </PrecompiledHeader>
       <DisableSpecificWarnings>4290;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <AdditionalIncludeDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/include;$(MM_3RDPARTYPRIVATE)/Lumencor/Dover/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
-      <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/lib_$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>LightEngineAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/lib_$(Platform);$(MM_3RDPARTYPRIVATE)/Lumencor/Dover/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>LightEngineAPI.lib;DoverAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -81,7 +81,7 @@
       <PrecompiledHeader>
       </PrecompiledHeader>
       <DisableSpecificWarnings>4290;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <AdditionalIncludeDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/include;$(MM_3RDPARTYPRIVATE)/Lumencor/Dover/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -89,11 +89,12 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
-      <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/lib_$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>LightEngineAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/lib_$(Platform);$(MM_3RDPARTYPRIVATE)/Lumencor/Dover/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>LightEngineAPI.lib;DoverAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Dover.cpp" />
     <ClCompile Include="Lumencor.cpp" />
     <ClCompile Include="TTLSwitch.cpp" />
   </ItemGroup>

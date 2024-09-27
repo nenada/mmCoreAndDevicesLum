@@ -21,6 +21,9 @@
     <ClCompile Include="TTLSwitch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Dover.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Lumencor.h">
