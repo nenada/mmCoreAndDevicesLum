@@ -39,6 +39,7 @@
 #define ERR_DOVER_CMD_FAILED         13005
 #define ERR_DOVER_HOME_FAILED        13006
 
+
 static const char* g_LightEngine = "LightEngine";
 static const char* g_TTLSwitch = "TTLSwitch";
 static const char* g_DoverStage = "DoverStage";
@@ -128,8 +129,8 @@ public:
    double GetStepSize();
    int SetPositionSteps(long steps);
    int GetPositionSteps(long& steps);
-   int SetOrigin();
    int GetLimits(double& lower, double& upper);
+   int SetOrigin() { return DEVICE_UNSUPPORTED_COMMAND; }
 
    bool IsContinuousFocusDrive() const { return false; }
    int IsStageSequenceable(bool& isSequenceable) const { isSequenceable = false; return DEVICE_OK; }
@@ -141,6 +142,7 @@ public:
 
 private:
    dover::DOF5Stage* zStage;
+   bool initialized;
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -160,17 +162,17 @@ public:
    int Initialize();
    int Shutdown();
 
-   virtual double GetStepSize();
-   virtual int SetPositionSteps(long x, long y);
-   virtual int GetPositionSteps(long& x, long& y);
-   virtual int SetRelativePositionSteps(long x, long y);
-   virtual int Home();
-   virtual int Stop();
+   double GetStepSize();
+   int SetPositionSteps(long x, long y);
+   int GetPositionSteps(long& x, long& y);
+   int SetRelativePositionSteps(long x, long y);
+   int Home();
+   int Stop();
 
-   virtual int SetOrigin();
+   int SetOrigin();
 
-   virtual int GetLimitsUm(double& xMin, double& xMax, double& yMin, double& yMax);
-   virtual int GetStepLimits(long& /*xMin*/, long& /*xMax*/, long& /*yMin*/, long& /*yMax*/);
+   int GetLimitsUm(double& xMin, double& xMax, double& yMin, double& yMax);
+   int GetStepLimits(long& /*xMin*/, long& /*xMax*/, long& /*yMin*/, long& /*yMax*/);
    double GetStepSizeXUm();
    double GetStepSizeYUm();
 
@@ -182,7 +184,7 @@ public:
 
 private:
    dover::XYStage* xyStage;
-
+   bool initialized;
 };
 
 //////////////////////////////////////////////////////////////////////////////

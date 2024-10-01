@@ -27,7 +27,7 @@
 static int doverInstanceCounter(0);
 const double umPerStep(0.005); // TODO: this should be picked up from the Dover configuration file
 
-CDoverStage::CDoverStage()
+CDoverStage::CDoverStage() : initialized(false)
 {
 	zStage = new dover::DOF5Stage;
 }
@@ -40,11 +40,20 @@ CDoverStage::~CDoverStage()
 
 bool CDoverStage::Busy()
 {
-	return false;
+	try
+	{
+		return zStage->IsBusy();
+	}
+	catch (std::exception& e)
+	{
+		LogMessage(e.what());
+		return false;
+	}
 }
 
 void CDoverStage::GetName(char* pszName) const
 {
+	CDeviceUtils::CopyLimitedString(pszName, g_DoverStage);
 }
 
 int CDoverStage::Initialize()
@@ -53,7 +62,6 @@ int CDoverStage::Initialize()
 	{ 
 		zStage->Initialize();
 		// this will automatically create a global instance of the API
-		doverInstanceCounter++;
 	}
 	catch (std::exception& e)
 	{
@@ -62,8 +70,13 @@ int CDoverStage::Initialize()
 	}
 	auto pAct = new CPropertyAction(this, &CDoverStage::OnPosition);
 	CreateProperty(MM::g_Keyword_Position, "0", MM::Float, false, pAct);
-	// TODO
-	//SetPropertyLimits(MM::g_Keyword_Position, min, max);
+	double low, high;
+	GetLimits(low, high);
+	SetPropertyLimits(MM::g_Keyword_Position, low, high);
+
+	UpdateStatus();
+	initialized = true;
+	doverInstanceCounter++;
 
 	return DEVICE_OK;
 }
@@ -76,7 +89,7 @@ int CDoverStage::Shutdown()
 	// last instance releases the API
 	if (doverInstanceCounter == 0)
 		dover::DoverApi::releaseInstance();
-
+	initialized = false;
 	return DEVICE_OK;
 }
 
@@ -157,15 +170,11 @@ int CDoverStage::GetPositionSteps(long& steps)
 	return DEVICE_OK;
 }
 
-int CDoverStage::SetOrigin()
-{
-	// TODO: what to do here?
-	return DEVICE_OK;
-}
-
 int CDoverStage::GetLimits(double& lower, double& upper)
 {
-	// TODO:
+	// TODO: read from configuration
+	lower = -2500.0;
+	upper = 2500.0;
 	return 0;
 }
 
@@ -190,56 +199,124 @@ int CDoverStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
 }
 
 
-CDoverXYStage::CDoverXYStage()
+CDoverXYStage::CDoverXYStage() : initialized(false)
 {
+	xyStage = new dover::XYStage;
 }
 
 CDoverXYStage::~CDoverXYStage()
 {
+	Shutdown();
+	delete xyStage;
 }
 
 bool CDoverXYStage::Busy()
 {
-	return false;
+	try
+	{
+		return xyStage->IsBusy();
+	}
+	catch (std::exception& e)
+	{
+		LogMessage(e.what());
+		return false;
+	}
 }
 
 void CDoverXYStage::GetName(char* pszName) const
 {
+	CDeviceUtils::CopyLimitedString(pszName, g_DoverXYStage);
 }
 
 int CDoverXYStage::Initialize()
 {
-	return 0;
+	try
+	{
+		xyStage->Initialize();
+		// this will automatically create a global instance of the API
+	}
+	catch (std::exception& e)
+	{
+		LogMessage(e.what());
+		return DEVICE_NATIVE_MODULE_FAILED;
+	}
+
+	UpdateStatus();
+	initialized = true;
+	doverInstanceCounter++;
+
+	return DEVICE_OK;
 }
 
 int CDoverXYStage::Shutdown()
 {
-	return 0;
+	doverInstanceCounter--;
+	doverInstanceCounter = max(0, doverInstanceCounter);
+
+	// last instance releases the API
+	if (doverInstanceCounter == 0)
+		dover::DoverApi::releaseInstance();
+	initialized = false;
+	return DEVICE_OK;
 }
 
 double CDoverXYStage::GetStepSize()
 {
-	return 0.0;
+	return umPerStep;
+
 }
 
 int CDoverXYStage::SetPositionSteps(long x, long y)
 {
-	return 0;
+	double xposUm = x * umPerStep;
+	double yposUm = y * umPerStep;
+
+	try
+	{
+		xyStage->SetPosition(xposUm / 1000.0, yposUm / 1000.0);
+	}
+	catch (std::exception& e)
+	{
+		LogMessage(e.what());
+		return ERR_DOVER_CMD_FAILED;
+	}
+	return DEVICE_OK;
 }
 
 int CDoverXYStage::GetPositionSteps(long& x, long& y)
 {
-	return 0;
+	try
+	{
+		auto xposUm = xyStage->GetPositionX() * 1000.0;
+		x = (long)(xposUm / umPerStep + 0.5);
+		auto yposUm = xyStage->GetPositionY() * 1000.0;
+		x = (long)(yposUm / umPerStep + 0.5);
+	}
+	catch (std::exception& e)
+	{
+		LogMessage(e.what());
+		return ERR_DOVER_CMD_FAILED;
+	}
+	return DEVICE_OK;
 }
 
 int CDoverXYStage::SetRelativePositionSteps(long x, long y)
 {
-	return 0;
+	return DEVICE_OK;
 }
 
 int CDoverXYStage::Home()
 {
-	return 0;
+	try
+	{
+		xyStage->Home();
+	}
+	catch (std::exception& e)
+	{
+		LogMessage(e.what());
+		return ERR_DOVER_HOME_FAILED;
+	}
+	return DEVICE_OK;
 }
 
 int CDoverXYStage::Stop()
@@ -254,6 +331,11 @@ int CDoverXYStage::SetOrigin()
 
 int CDoverXYStage::GetLimitsUm(double& xMin, double& xMax, double& yMin, double& yMax)
 {
+	xMin = -75000.0;
+	xMax = 75000.0;
+	yMin = -75000.0;
+	yMax = 75000.0;
+
 	return 0;
 }
 
@@ -264,12 +346,12 @@ int CDoverXYStage::GetStepLimits(long&, long&, long&, long&)
 
 double CDoverXYStage::GetStepSizeXUm()
 {
-	return 0.0;
+	return umPerStep;
 }
 
 double CDoverXYStage::GetStepSizeYUm()
 {
-	return 0.0;
+	return umPerStep;
 }
 
 int CDoverXYStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
