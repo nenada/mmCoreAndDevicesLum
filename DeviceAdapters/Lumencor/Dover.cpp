@@ -175,7 +175,7 @@ int CDoverStage::GetLimits(double& lower, double& upper)
 	// TODO: read from configuration
 	lower = -2500.0;
 	upper = 2500.0;
-	return 0;
+	return DEVICE_OK;
 }
 
 int CDoverStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
@@ -290,7 +290,7 @@ int CDoverXYStage::GetPositionSteps(long& x, long& y)
 		auto xposUm = xyStage->GetPositionX() * 1000.0;
 		x = (long)(xposUm / umPerStep + 0.5);
 		auto yposUm = xyStage->GetPositionY() * 1000.0;
-		x = (long)(yposUm / umPerStep + 0.5);
+		y = (long)(yposUm / umPerStep + 0.5);
 	}
 	catch (std::exception& e)
 	{
@@ -300,10 +300,6 @@ int CDoverXYStage::GetPositionSteps(long& x, long& y)
 	return DEVICE_OK;
 }
 
-int CDoverXYStage::SetRelativePositionSteps(long x, long y)
-{
-	return DEVICE_OK;
-}
 
 int CDoverXYStage::Home()
 {
@@ -321,16 +317,13 @@ int CDoverXYStage::Home()
 
 int CDoverXYStage::Stop()
 {
-	return 0;
-}
-
-int CDoverXYStage::SetOrigin()
-{
-	return 0;
+	// TODO: implement
+	return DEVICE_UNSUPPORTED_COMMAND;
 }
 
 int CDoverXYStage::GetLimitsUm(double& xMin, double& xMax, double& yMin, double& yMax)
 {
+	// TODO read from config
 	xMin = -75000.0;
 	xMax = 75000.0;
 	yMin = -75000.0;
@@ -339,9 +332,17 @@ int CDoverXYStage::GetLimitsUm(double& xMin, double& xMax, double& yMin, double&
 	return 0;
 }
 
-int CDoverXYStage::GetStepLimits(long&, long&, long&, long&)
+int CDoverXYStage::GetStepLimits(long& xMinS, long& xMaxS, long& yMinS, long& yMaxS)
 {
-	return 0;
+	double xMin, xMax, yMin, yMax;
+	GetLimitsUm(xMin, xMax, yMin, yMax);
+
+	xMinS = (long)std::nearbyint(xMin / umPerStep);
+	xMaxS = (long)std::nearbyint(xMax / umPerStep);
+	yMinS = (long)std::nearbyint(yMin / umPerStep);
+	yMaxS = (long)std::nearbyint(yMax / umPerStep);
+
+	return DEVICE_OK;
 }
 
 double CDoverXYStage::GetStepSizeXUm()
@@ -354,7 +355,7 @@ double CDoverXYStage::GetStepSizeYUm()
 	return umPerStep;
 }
 
-int CDoverXYStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CDoverXYStage::OnPosition(MM::PropertyBase*, MM::ActionType)
 {
-	return 0;
+	return DEVICE_OK;
 }

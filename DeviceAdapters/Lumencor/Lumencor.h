@@ -39,6 +39,10 @@
 #define ERR_DOVER_CMD_FAILED         13005
 #define ERR_DOVER_HOME_FAILED        13006
 
+#define ERR_TTL_CHANNEL_NAME         13101
+#define ERR_TTL_COMMAND_FAILED       13102
+
+
 
 static const char* g_LightEngine = "LightEngine";
 static const char* g_TTLSwitch = "TTLSwitch";
@@ -165,11 +169,8 @@ public:
    double GetStepSize();
    int SetPositionSteps(long x, long y);
    int GetPositionSteps(long& x, long& y);
-   int SetRelativePositionSteps(long x, long y);
    int Home();
    int Stop();
-
-   int SetOrigin();
 
    int GetLimitsUm(double& xMin, double& xMax, double& yMin, double& yMax);
    int GetStepLimits(long& /*xMin*/, long& /*xMax*/, long& /*yMin*/, long& /*yMax*/);
@@ -177,6 +178,7 @@ public:
    double GetStepSizeYUm();
 
    int IsXYStageSequenceable(bool& isSequenceable) const { isSequenceable = false; return DEVICE_OK; }
+   int SetOrigin() { return DEVICE_UNSUPPORTED_COMMAND; }
 
    // action interface
    // ----------------
@@ -192,6 +194,16 @@ private:
 // TTL controlled light source with hardware timing and sequencing
 // Requires TTLGEN device attached to the light engine
 //////////////////////////////////////////////////////////////////////////////
+
+struct ChannelInfo
+{
+   std::string name;
+   int channelId;
+   int ttlId;
+   double exposureMs;
+
+   ChannelInfo() : channelId(-1), ttlId(-1), exposureMs(0.0) {}
+};
 
 class CTTLSwitch : public CStateDeviceBase<CTTLSwitch>
 {
@@ -216,26 +228,24 @@ public:
    int OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnPort(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
-   int OpenPort(const char* pszName, long lnValue);
-   int WriteToPort(long lnValue);
-   int ClosePort();
    int LoadSequence(unsigned size, unsigned char* seq);
 
    void* engine;
    bool initialized;
    std::string model;
    std::string connection;
+   std::string ttlPort;
    std::vector<std::string> channels;
-   std::map<std::string, int> channelLookup;
-   bool shutterState;
-   std::vector<bool> channelStates; // cache for channel states
+   std::map<std::string, ChannelInfo> channelLookup;
+   double exposureMs;
 
    int RetrieveError();
    int ZeroAll();
-   int ApplyStates();
    int TurnAllOff();
+
 };
 
 #endif //_LUMENCOR_H_

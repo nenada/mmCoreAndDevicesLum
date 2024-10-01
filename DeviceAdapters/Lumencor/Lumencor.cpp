@@ -37,6 +37,8 @@ using namespace std;
 MODULE_API void InitializeModuleData()
 {
    RegisterDevice(g_LightEngine, MM::ShutterDevice, "Lumencor Light Engine");
+	RegisterDevice(g_DoverStage, MM::StageDevice, "Dover DOF5 Z Stage");
+	RegisterDevice(g_DoverXYStage, MM::XYStageDevice, "Dover XY Stage");
 }
 
 MODULE_API MM::Device* CreateDevice(const char* deviceName)
@@ -56,6 +58,11 @@ MODULE_API MM::Device* CreateDevice(const char* deviceName)
 	{
 		return new CDoverStage();
 	}
+	else if (strcmp(deviceName, g_DoverXYStage) == 0)
+	{
+		return new CDoverXYStage();
+	}
+
 
    return 0;
 }
