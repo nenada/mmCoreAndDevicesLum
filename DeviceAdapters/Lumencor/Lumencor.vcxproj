@@ -70,6 +70,9 @@
       <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/lib_$(Platform);$(MM_3RDPARTYPRIVATE)/Lumencor/Dover/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>LightEngineAPI.lib;DoverAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(TargetPath) C:\"Program Files"\Micro-Manager-2.0</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -92,6 +95,9 @@
       <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)/Lumencor/LumencorAPI/lib_$(Platform);$(MM_3RDPARTYPRIVATE)/Lumencor/Dover/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>LightEngineAPI.lib;DoverAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(TargetPath) C:\"Program Files"\Micro-Manager-2.0</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Dover.cpp" />

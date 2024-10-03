@@ -201,13 +201,13 @@ int CDoverStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
 
 CDoverXYStage::CDoverXYStage() : initialized(false)
 {
-	xyStage = new dover::XYStage;
+	xyStage = dover::XYStage::create();
 }
 
 CDoverXYStage::~CDoverXYStage()
 {
 	Shutdown();
-	delete xyStage;
+	dover::XYStage::destroy(xyStage);
 }
 
 bool CDoverXYStage::Busy()
