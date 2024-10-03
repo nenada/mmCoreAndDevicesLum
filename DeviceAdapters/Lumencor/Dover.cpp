@@ -326,8 +326,8 @@ int CDoverXYStage::GetLimitsUm(double& xMin, double& xMax, double& yMin, double&
 	// TODO read from config
 	xMin = -75000.0;
 	xMax = 75000.0;
-	yMin = -75000.0;
-	yMax = 75000.0;
+	yMin = -50000.0;
+	yMax = 50000.0;
 
 	return 0;
 }
