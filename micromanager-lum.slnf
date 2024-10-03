@@ -12,7 +12,9 @@
       "DeviceAdapters\\UserDefinedSerial\\UserDefinedSerial.vcxproj",
       "MMDevice\\MMDevice-SharedRuntime.vcxproj",
       "MMDevice\\MMDevice-StaticRuntime.vcxproj",
-      "SecretDeviceAdapters\\HamamatsuHam\\HamamatsuHam.vcxproj"
+      "SecretDeviceAdapters\\HamamatsuHam\\HamamatsuHam.vcxproj",
+      "MMCore\\MMCore.vcxproj",
+      "MMCoreJ_wrap\\MMCoreJ_wrap.vcxproj"
     ]
   }
 }
