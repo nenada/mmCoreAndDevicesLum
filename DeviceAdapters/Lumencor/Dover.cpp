@@ -25,17 +25,36 @@
 #include "DoverAPI.h"
 
 static int doverInstanceCounter(0);
+dover::DoverApi* apiInstance = nullptr;
 const double umPerStep(0.005); // TODO: this should be picked up from the Dover configuration file
 
 CDoverStage::CDoverStage() : initialized(false)
 {
-	zStage = dover::DOF5Stage::create();
+	if (apiInstance == nullptr)
+	{
+		apiInstance = dover::DoverApi::createInstance();
+		doverInstanceCounter = 0;
+	}
+	if (apiInstance)
+	{
+		zStage = dover::DOF5Stage::create(apiInstance);
+		doverInstanceCounter++;
+	}
 }
 
 CDoverStage::~CDoverStage()
 {
 	Shutdown();
 	dover::DOF5Stage::destroy(zStage);
+	doverInstanceCounter--;
+	doverInstanceCounter = max(0, doverInstanceCounter);
+
+	// last instance releases the API
+	if (doverInstanceCounter == 0)
+	{
+		dover::DoverApi::destroyInstance(apiInstance);
+		apiInstance = nullptr;
+	}
 }
 
 bool CDoverStage::Busy()
@@ -61,7 +80,6 @@ int CDoverStage::Initialize()
 	try
 	{ 
 		zStage->Initialize();
-		// this will automatically create a global instance of the API
 	}
 	catch (std::exception& e)
 	{
@@ -76,19 +94,12 @@ int CDoverStage::Initialize()
 
 	UpdateStatus();
 	initialized = true;
-	doverInstanceCounter++;
 
 	return DEVICE_OK;
 }
 
 int CDoverStage::Shutdown()
 {
-	doverInstanceCounter--;
-	doverInstanceCounter = max(0, doverInstanceCounter);
-
-	// last instance releases the API
-	if (doverInstanceCounter == 0)
-		dover::DoverApi::releaseInstance();
 	initialized = false;
 	return DEVICE_OK;
 }
@@ -201,13 +212,31 @@ int CDoverStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
 
 CDoverXYStage::CDoverXYStage() : initialized(false)
 {
-	xyStage = dover::XYStage::create();
+	if (apiInstance == nullptr)
+	{
+		apiInstance = dover::DoverApi::createInstance();
+		doverInstanceCounter = 0;
+	}
+	if (apiInstance)
+	{
+		xyStage = dover::XYStage::create(apiInstance);
+		doverInstanceCounter++;
+	}
 }
 
 CDoverXYStage::~CDoverXYStage()
 {
 	Shutdown();
 	dover::XYStage::destroy(xyStage);
+	doverInstanceCounter--;
+	doverInstanceCounter = max(0, doverInstanceCounter);
+
+	// last instance releases the API
+	if (doverInstanceCounter == 0)
+	{
+		dover::DoverApi::destroyInstance(apiInstance);
+		apiInstance = nullptr;
+	}
 }
 
 bool CDoverXYStage::Busy()
@@ -233,7 +262,6 @@ int CDoverXYStage::Initialize()
 	try
 	{
 		xyStage->Initialize();
-		// this will automatically create a global instance of the API
 	}
 	catch (std::exception& e)
 	{
@@ -250,12 +278,6 @@ int CDoverXYStage::Initialize()
 
 int CDoverXYStage::Shutdown()
 {
-	doverInstanceCounter--;
-	doverInstanceCounter = max(0, doverInstanceCounter);
-
-	// last instance releases the API
-	if (doverInstanceCounter == 0)
-		dover::DoverApi::releaseInstance();
 	initialized = false;
 	return DEVICE_OK;
 }
