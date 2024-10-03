@@ -202,7 +202,7 @@ struct ChannelInfo
    int ttlId;
    double exposureMs;
 
-   ChannelInfo() : channelId(-1), ttlId(-1), exposureMs(0.0) {}
+   ChannelInfo() : channelId(0), ttlId(-1), exposureMs(0.0) {}
 };
 
 class CTTLSwitch : public CStateDeviceBase<CTTLSwitch>

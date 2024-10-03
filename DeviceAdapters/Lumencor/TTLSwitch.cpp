@@ -176,7 +176,7 @@ int CTTLSwitch::Initialize()
 	{
 		ostringstream os;
 		os << channels[i] << "_" << "Intensity";
-	   auto pAct = new CPropertyAction(this, &CTTLSwitch::OnChannelIntensity);
+	   pAct = new CPropertyAction(this, &CTTLSwitch::OnChannelIntensity);
 		CreateProperty(os.str().c_str(), "0", MM::Integer, false, pAct);
 		SetPropertyLimits(os.str().c_str(), 0, maxIntensity);
 
@@ -226,6 +226,10 @@ int CTTLSwitch::Initialize()
 	if (ret != DEVICE_OK)
 		return ret;
 
+	// initially set the first channel
+	ret = SetTTLController(channelLookup[channels[0]]);
+	if (ret != DEVICE_OK)
+		return ret;
 
    UpdateStatus();
 
