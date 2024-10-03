@@ -29,13 +29,13 @@ const double umPerStep(0.005); // TODO: this should be picked up from the Dover 
 
 CDoverStage::CDoverStage() : initialized(false)
 {
-	zStage = new dover::DOF5Stage;
+	zStage = dover::DOF5Stage::create();
 }
 
 CDoverStage::~CDoverStage()
 {
 	Shutdown();
-	delete zStage;
+	dover::DOF5Stage::destroy(zStage);
 }
 
 bool CDoverStage::Busy()
