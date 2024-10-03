@@ -224,6 +224,7 @@ public:
    // action interface
    // ----------------
    int OnState(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnLabel(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnSequence(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct);
@@ -232,6 +233,7 @@ public:
 
 private:
    int LoadSequence(unsigned size, unsigned char* seq);
+   int SetTTLController(const ChannelInfo& inf);
 
    void* engine;
    bool initialized;
@@ -240,7 +242,7 @@ private:
    std::string ttlPort;
    std::vector<std::string> channels;
    std::map<std::string, ChannelInfo> channelLookup;
-   double exposureMs;
+   int currentChannel;
 
    int RetrieveError();
    int ZeroAll();

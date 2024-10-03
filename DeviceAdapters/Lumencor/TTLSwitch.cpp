@@ -45,7 +45,7 @@ const map<string, int> ttlMap =
 CTTLSwitch::CTTLSwitch() :
    initialized(false),
 	engine(0),
-	exposureMs(0.0)
+	currentChannel(0)
 {
    InitializeDefaultErrorMessages();
 
@@ -158,6 +158,19 @@ int CTTLSwitch::Initialize()
 		channels.push_back(chName);
 	}
 
+	// State
+	// -----
+	auto pAct = new CPropertyAction(this, &CTTLSwitch::OnState);
+	ret = CreateProperty(MM::g_Keyword_State, 0, MM::Integer, false, pAct);
+	if (ret != DEVICE_OK)
+		return ret;
+
+	pAct = new CPropertyAction(this, &CTTLSwitch::OnLabel);
+	ret = CreateStringProperty(MM::g_Keyword_Label, channels[0].c_str(), true, pAct);
+	if (ret != DEVICE_OK)
+		return ret;
+	currentChannel = 0;
+
 	channelLookup.clear();
 	for (size_t i=0; i<channels.size(); i++)
 	{
@@ -180,6 +193,8 @@ int CTTLSwitch::Initialize()
 		pAct = new CPropertyAction(this, &CTTLSwitch::OnChannelExposure);
 		CreateProperty(osexp.str().c_str(), "0.0", MM::Float, false, pAct);
 		SetPropertyLimits(osexp.str().c_str(), 0.0, 100.0);  // limit to 100 ms
+		
+		AddAllowedValue(MM::g_Keyword_Label, channels[i].c_str());
 	}
 
    // reset light engine
@@ -191,19 +206,7 @@ int CTTLSwitch::Initialize()
 	ret = TurnAllOff();
 	if (ret != DEVICE_OK)
 		return ret;
-
-   // State
-   // -----
-   auto pAct = new CPropertyAction(this, &CTTLSwitch::OnState);
-   ret = CreateProperty(MM::g_Keyword_State, channels[0].c_str(), MM::String, false, pAct);
-   if (ret != DEVICE_OK)
-      return ret;                                                            
-   
-	for (auto ch : channels)
-	{
-		AddAllowedValue(MM::g_Keyword_State, ch.c_str());
-	}
-         
+            
 	// get TTL control info
 	ret = SendSerialCommand(ttlPort.c_str(), "VER", "\n");
 	if (ret != DEVICE_OK)
@@ -273,41 +276,82 @@ int CTTLSwitch::OnState(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
    if (eAct == MM::BeforeGet)
    {
-      return DEVICE_OK;
+		pProp->Set((long)currentChannel);
    }
    else if (eAct == MM::AfterSet)
    {
 		// get channel
-		string channelName;
-		pProp->Get(channelName);
-		auto it = channelLookup.find(channelName);
+		long channelIndex;
+		pProp->Get(channelIndex);
+		if (channelIndex >= channels.size() || channelIndex < 0)
+			return DEVICE_INVALID_PROPERTY_VALUE;
+
+		auto it = channelLookup.find(channels[channelIndex]);
 		if (it == channelLookup.end())
 			return ERR_TTL_CHANNEL_NAME;
-		int ttlId = it->second.ttlId;
-		int exposureUs = nearbyint(it->second.exposureMs * 1000);
-		
-		ostringstream os;
-		os << "SQ " << ttlId << " " << exposureUs;
-		int ret = SendSerialCommand(ttlPort.c_str(), os.str().c_str(), "\n");
-		if (ret != DEVICE_OK)
-		{
-			return ret;
-		}
 
-		string answer;
-		ret = GetSerialAnswer(ttlPort.c_str(), "\n", answer);
+		int ret = SetTTLController(it->second);
 		if (ret != DEVICE_OK)
-		{
 			return ret;
-		}
-		if (answer.size() == 0 || answer.at(0) != 'A')
-		{
-			LogMessage("SQ command failed: " + answer);
-			return ERR_TTL_COMMAND_FAILED;
-		}
+
+		currentChannel = channelIndex;
    }
 
    return DEVICE_OK;
+}
+
+int CTTLSwitch::SetTTLController(const ChannelInfo& inf)
+{
+	int ttlId = inf.ttlId;
+	int exposureUs = (int)nearbyint(inf.exposureMs * 1000);
+
+	ostringstream os;
+	os << "SQ " << ttlId << " " << exposureUs;
+	int ret = SendSerialCommand(ttlPort.c_str(), os.str().c_str(), "\n");
+	if (ret != DEVICE_OK)
+	{
+		return ret;
+	}
+
+	string answer;
+	ret = GetSerialAnswer(ttlPort.c_str(), "\n", answer);
+	if (ret != DEVICE_OK)
+	{
+		return ret;
+	}
+	if (answer.size() == 0 || answer.at(0) != 'A')
+	{
+		LogMessage("SQ command failed: " + answer);
+		return ERR_TTL_COMMAND_FAILED;
+	}
+
+	return DEVICE_OK;
+}
+
+int CTTLSwitch::OnLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(channels[currentChannel].c_str());
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		// get channel
+		string channelLabel;
+		pProp->Get(channelLabel);
+
+		auto it = channelLookup.find(channelLabel);
+		if (it == channelLookup.end())
+			return ERR_TTL_CHANNEL_NAME;
+
+		int ret = SetTTLController(it->second);
+		if (ret != DEVICE_OK)
+			return ret;
+
+		currentChannel = it->second.channelId;
+	}
+
+	return DEVICE_OK;
 }
 
 int CTTLSwitch::OnSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
