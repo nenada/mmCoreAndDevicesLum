@@ -161,12 +161,12 @@ int CTTLSwitch::Initialize()
 	// State
 	// -----
 	auto pAct = new CPropertyAction(this, &CTTLSwitch::OnState);
-	ret = CreateProperty(MM::g_Keyword_State, 0, MM::Integer, false, pAct);
+	ret = CreateProperty(MM::g_Keyword_State, "0", MM::Integer, false, pAct);
 	if (ret != DEVICE_OK)
 		return ret;
 
 	pAct = new CPropertyAction(this, &CTTLSwitch::OnLabel);
-	ret = CreateStringProperty(MM::g_Keyword_Label, channels[0].c_str(), true, pAct);
+	ret = CreateStringProperty(MM::g_Keyword_Label, channels[0].c_str(), false, pAct);
 	if (ret != DEVICE_OK)
 		return ret;
 	currentChannel = 0;
@@ -191,7 +191,7 @@ int CTTLSwitch::Initialize()
 		ostringstream osexp;
 		osexp << channels[i] << "_" << "ExposureMs";
 		pAct = new CPropertyAction(this, &CTTLSwitch::OnChannelExposure);
-		CreateProperty(osexp.str().c_str(), "0.0", MM::Float, false, pAct);
+		CreateProperty(osexp.str().c_str(), "5.0", MM::Float, false, pAct);
 		SetPropertyLimits(osexp.str().c_str(), 0.0, 100.0);  // limit to 100 ms
 		
 		AddAllowedValue(MM::g_Keyword_Label, channels[i].c_str());
@@ -208,14 +208,15 @@ int CTTLSwitch::Initialize()
 		return ret;
             
 	// get TTL control info
-	ret = SendSerialCommand(ttlPort.c_str(), "VER", "\n");
+	ret = SendSerialCommand(ttlPort.c_str(), "VER", "\r");
 	if (ret != DEVICE_OK)
 	{
 		LogMessage("Unable to connect to the TTL controller.");
 		return ret;
 	}
+	::Sleep(500);
 	string answer;
-	ret = GetSerialAnswer(ttlPort.c_str(), "\n", answer);
+	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
 	if (ret != DEVICE_OK)
 	{
 		LogMessage("No response from the TTL controller.");
@@ -311,18 +312,24 @@ int CTTLSwitch::SetTTLController(const ChannelInfo& inf)
 
 	ostringstream os;
 	os << "SQ " << ttlId << " " << exposureUs;
-	int ret = SendSerialCommand(ttlPort.c_str(), os.str().c_str(), "\n");
+	int ret = SendSerialCommand(ttlPort.c_str(), os.str().c_str(), "\r");
+	LogMessage("Sent SQ command: " + os.str());
 	if (ret != DEVICE_OK)
 	{
+		LogMessage("Failed to send SQ command to " + ttlPort);
 		return ret;
 	}
 
+	::Sleep(500);
 	string answer;
-	ret = GetSerialAnswer(ttlPort.c_str(), "\n", answer);
+	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
+	LogMessage("Received SQ answer: " + answer);
 	if (ret != DEVICE_OK)
 	{
+		LogMessage("Failed to get answer from SQ command from " + ttlPort);
 		return ret;
 	}
+	answer.erase(std::remove(answer.begin(), answer.end(), '\n'), answer.end());
 	if (answer.size() == 0 || answer.at(0) != 'A')
 	{
 		LogMessage("SQ command failed: " + answer);

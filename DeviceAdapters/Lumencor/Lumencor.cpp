@@ -39,6 +39,7 @@ MODULE_API void InitializeModuleData()
    RegisterDevice(g_LightEngine, MM::ShutterDevice, "Lumencor Light Engine");
 	RegisterDevice(g_DoverStage, MM::StageDevice, "Dover DOF5 Z Stage");
 	RegisterDevice(g_DoverXYStage, MM::XYStageDevice, "Dover XY Stage");
+	RegisterDevice(g_TTLSwitch, MM::StateDevice, "Light Engine with TTL Switch");
 }
 
 MODULE_API MM::Device* CreateDevice(const char* deviceName)
@@ -98,7 +99,7 @@ LightEngine::LightEngine() :
    // Description                                                            
    CreateProperty(MM::g_Keyword_Description, "Lumencor Light Engine", MM::String, true);
 
-   // Port                                                                   
+   // connection                                                                   
    CPropertyAction* pAct = new CPropertyAction(this, &LightEngine::OnConnection);
    CreateProperty(g_Prop_Connection, "", MM::String, false, pAct, true);
 
