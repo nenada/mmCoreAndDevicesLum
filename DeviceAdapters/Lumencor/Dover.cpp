@@ -24,21 +24,21 @@
 #include "Lumencor.h"
 #include "DoverAPI.h"
 
-static int doverInstanceCounter(0);
-dover::DoverApi* apiInstance = nullptr;
-const double umPerStep(0.005); // TODO: this should be picked up from the Dover configuration file
+static int g_doverInstanceCounter(0);
+dover::DoverApi* g_apiInstance = nullptr;
+const double g_umPerStep(0.005); // TODO: this should be picked up from the Dover configuration file
 
-CDoverStage::CDoverStage() : initialized(false)
+CDoverStage::CDoverStage() : initialized(false), zStage(nullptr)
 {
-	if (apiInstance == nullptr)
+	if (g_apiInstance == nullptr)
 	{
-		apiInstance = dover::DoverApi::createInstance();
-		doverInstanceCounter = 0;
+		g_apiInstance = dover::DoverApi::createInstance();
+		g_doverInstanceCounter = 0;
 	}
-	if (apiInstance)
+	if (g_apiInstance)
 	{
-		zStage = dover::DOF5Stage::create(apiInstance);
-		doverInstanceCounter++;
+		zStage = dover::DOF5Stage::create(g_apiInstance);
+		g_doverInstanceCounter++;
 	}
 }
 
@@ -46,14 +46,14 @@ CDoverStage::~CDoverStage()
 {
 	Shutdown();
 	dover::DOF5Stage::destroy(zStage);
-	doverInstanceCounter--;
-	doverInstanceCounter = max(0, doverInstanceCounter);
+	g_doverInstanceCounter--;
+	g_doverInstanceCounter = max(0, g_doverInstanceCounter);
 
 	// last instance releases the API
-	if (doverInstanceCounter == 0)
+	if (g_doverInstanceCounter == 0)
 	{
-		dover::DoverApi::destroyInstance(apiInstance);
-		apiInstance = nullptr;
+		dover::DoverApi::destroyInstance(g_apiInstance);
+		g_apiInstance = nullptr;
 	}
 }
 
@@ -120,6 +120,11 @@ int CDoverStage::Home()
 
 int CDoverStage::SetPositionUm(double pos)
 {
+	double low, high;
+	GetLimits(low, high);
+	if (pos >= high || pos <= low)
+		return ERR_DOVER_LIMITS_EXCEEDED;
+
 	try
 	{
 		zStage->SetPosition(pos / 1000.0);
@@ -148,12 +153,12 @@ int CDoverStage::GetPositionUm(double& pos)
 
 double CDoverStage::GetStepSize()
 {
-	return umPerStep;
+	return g_umPerStep;
 }
 
 int CDoverStage::SetPositionSteps(long steps)
 {
-	double posUm = steps * umPerStep;
+	double posUm = steps * g_umPerStep;
 	try
 	{
 		zStage->SetPosition(posUm / 1000.0);
@@ -171,7 +176,7 @@ int CDoverStage::GetPositionSteps(long& steps)
 	try
 	{
 		auto posUm = zStage->GetPosition() * 1000.0;
-		steps = (long)(posUm / umPerStep + 0.5);
+		steps = (long)(posUm / g_umPerStep + 0.5);
 	}
 	catch (std::exception& e)
 	{
@@ -210,17 +215,17 @@ int CDoverStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
 }
 
 
-CDoverXYStage::CDoverXYStage() : initialized(false)
+CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 {
-	if (apiInstance == nullptr)
+	if (g_apiInstance == nullptr)
 	{
-		apiInstance = dover::DoverApi::createInstance();
-		doverInstanceCounter = 0;
+		g_apiInstance = dover::DoverApi::createInstance();
+		g_doverInstanceCounter = 0;
 	}
-	if (apiInstance)
+	if (g_apiInstance)
 	{
-		xyStage = dover::XYStage::create(apiInstance);
-		doverInstanceCounter++;
+		xyStage = dover::XYStage::create(g_apiInstance);
+		g_doverInstanceCounter++;
 	}
 }
 
@@ -228,14 +233,14 @@ CDoverXYStage::~CDoverXYStage()
 {
 	Shutdown();
 	dover::XYStage::destroy(xyStage);
-	doverInstanceCounter--;
-	doverInstanceCounter = max(0, doverInstanceCounter);
+	g_doverInstanceCounter--;
+	g_doverInstanceCounter = max(0, g_doverInstanceCounter);
 
 	// last instance releases the API
-	if (doverInstanceCounter == 0)
+	if (g_doverInstanceCounter == 0)
 	{
-		dover::DoverApi::destroyInstance(apiInstance);
-		apiInstance = nullptr;
+		dover::DoverApi::destroyInstance(g_apiInstance);
+		g_apiInstance = nullptr;
 	}
 }
 
@@ -271,7 +276,7 @@ int CDoverXYStage::Initialize()
 
 	UpdateStatus();
 	initialized = true;
-	doverInstanceCounter++;
+	g_doverInstanceCounter++;
 
 	return DEVICE_OK;
 }
@@ -284,14 +289,21 @@ int CDoverXYStage::Shutdown()
 
 double CDoverXYStage::GetStepSize()
 {
-	return umPerStep;
+	return g_umPerStep;
 
 }
 
 int CDoverXYStage::SetPositionSteps(long x, long y)
 {
-	double xposUm = x * umPerStep;
-	double yposUm = y * umPerStep;
+	double xposUm = x * g_umPerStep;
+	double yposUm = y * g_umPerStep;
+
+	double xlow, xhigh, ylow, yhigh;
+	GetLimitsUm(xlow, xhigh, ylow, yhigh);
+
+
+	if (xposUm >= xhigh || xposUm <= xlow || yposUm <= ylow || yposUm >= yhigh)
+		return ERR_DOVER_LIMITS_EXCEEDED;
 
 	try
 	{
@@ -310,9 +322,9 @@ int CDoverXYStage::GetPositionSteps(long& x, long& y)
 	try
 	{
 		auto xposUm = xyStage->GetPositionX() * 1000.0;
-		x = (long)(xposUm / umPerStep + 0.5);
+		x = (long)(xposUm / g_umPerStep + 0.5);
 		auto yposUm = xyStage->GetPositionY() * 1000.0;
-		y = (long)(yposUm / umPerStep + 0.5);
+		y = (long)(yposUm / g_umPerStep + 0.5);
 	}
 	catch (std::exception& e)
 	{
@@ -359,22 +371,22 @@ int CDoverXYStage::GetStepLimits(long& xMinS, long& xMaxS, long& yMinS, long& yM
 	double xMin, xMax, yMin, yMax;
 	GetLimitsUm(xMin, xMax, yMin, yMax);
 
-	xMinS = (long)std::nearbyint(xMin / umPerStep);
-	xMaxS = (long)std::nearbyint(xMax / umPerStep);
-	yMinS = (long)std::nearbyint(yMin / umPerStep);
-	yMaxS = (long)std::nearbyint(yMax / umPerStep);
+	xMinS = (long)std::nearbyint(xMin / g_umPerStep);
+	xMaxS = (long)std::nearbyint(xMax / g_umPerStep);
+	yMinS = (long)std::nearbyint(yMin / g_umPerStep);
+	yMaxS = (long)std::nearbyint(yMax / g_umPerStep);
 
 	return DEVICE_OK;
 }
 
 double CDoverXYStage::GetStepSizeXUm()
 {
-	return umPerStep;
+	return g_umPerStep;
 }
 
 double CDoverXYStage::GetStepSizeYUm()
 {
-	return umPerStep;
+	return g_umPerStep;
 }
 
 int CDoverXYStage::OnPosition(MM::PropertyBase*, MM::ActionType)
