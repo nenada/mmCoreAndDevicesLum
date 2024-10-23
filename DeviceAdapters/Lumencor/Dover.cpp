@@ -274,6 +274,9 @@ int CDoverXYStage::Initialize()
 		return DEVICE_NATIVE_MODULE_FAILED;
 	}
 
+	// TODO: define property for trigger value
+	xyStage->SetDigitalOutputTrigger(1); // corresponds to "InMotion"
+
 	UpdateStatus();
 	initialized = true;
 	g_doverInstanceCounter++;

@@ -417,7 +417,9 @@ int CTTLSwitch::OnState(MM::PropertyBase* pProp, MM::ActionType eAct)
 	else if (eAct == MM::IsSequenceable)
 	{
 		LogMessage("MM::IsSequenceable event.");
-		pProp->SetSequenceable((long)channels.size());
+		// pProp->SetSequenceable((long)channels.size());
+		// disable sequencing for this property
+		pProp->SetSequenceable(0);
 	}
 	else if (eAct == MM::AfterLoadSequence)
 	{
