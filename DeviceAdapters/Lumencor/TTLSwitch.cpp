@@ -62,6 +62,7 @@ CTTLSwitch::CTTLSwitch() :
    //
    // Description                                                            
    CreateProperty(MM::g_Keyword_Description, "Lumencor Light Engine, TTL control", MM::String, true);
+	CreateProperty(g_Prop_ModuleVersion, LUMENCOR_DEV_VERSION, MM::String, true);
 
 	// light engine connection                                                                 
 	auto pAct = new CPropertyAction(this, &CTTLSwitch::OnConnection);
@@ -250,6 +251,118 @@ int CTTLSwitch::Shutdown()
    return DEVICE_OK;
 }
 
+
+int CTTLSwitch::SetTTLController(const ChannelInfo& inf)
+{
+	int ttlId = inf.ttlId;
+	int exposureUs = (int)nearbyint(inf.exposureMs * 1000);
+
+	ostringstream os;
+	os << "SQ " << ttlId << " " << exposureUs;
+	int ret = SendSerialCommand(ttlPort.c_str(), os.str().c_str(), "\r");
+	LogMessage("Sent SQ command: " + os.str());
+	if (ret != DEVICE_OK)
+	{
+		LogMessage("Failed to send SQ command to " + ttlPort);
+		return ret;
+	}
+
+	::Sleep(100);
+	string answer;
+	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
+	LogMessage("Received SQ answer: " + answer);
+	if (ret != DEVICE_OK)
+	{
+		LogMessage("Failed to get answer from SQ command from " + ttlPort);
+		return ret;
+	}
+	answer.erase(std::remove(answer.begin(), answer.end(), '\n'), answer.end());
+	if (answer.size() == 0 || answer.at(0) != 'A')
+	{
+		LogMessage("SQ command failed: " + answer);
+		return ERR_TTL_COMMAND_FAILED;
+	}
+
+	return DEVICE_OK;
+}
+
+/**
+ * Sends sequence information to Arduino
+ * @param sequence - channel index sequence
+ */
+int CTTLSwitch::LoadChannelSequence(const std::vector<int>& sequence)
+{
+	ostringstream os;
+	os << "SQ ";
+	for (size_t i = 0; i < sequence.size(); i++)
+	{
+		auto cInfo = channelLookup[channels[i]];
+		os << cInfo.channelId << " " << (int)nearbyint(cInfo.exposureMs * 1000);
+		if (i < sequence.size() - 1)
+			os << " ";
+	}
+	int ret = SendSerialCommand(ttlPort.c_str(), os.str().c_str(), "\r");
+	LogMessage("Sent channel sequence SQ command: " + os.str());
+
+	string answer;
+	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
+	LogMessage("Received SQ answer: " + answer);
+	if (ret != DEVICE_OK)
+	{
+		LogMessage("Failed to get answer from SQ command from " + ttlPort);
+		return ret;
+	}
+	answer.erase(std::remove(answer.begin(), answer.end(), '\n'), answer.end());
+	if (answer.size() == 0 || answer.at(0) != 'A')
+	{
+		LogMessage("SQ command failed: " + answer);
+		return ERR_TTL_COMMAND_FAILED;
+	}
+
+	return DEVICE_OK;
+}
+
+// Get error from light engine
+int CTTLSwitch::RetrieveError()
+{
+	const int maxLength(1024);
+	int errorCode;
+	char errorText[maxLength];
+	lum_getLastErrorCode(engine, &errorCode);
+	lum_getLastErrorText(engine, errorText, maxLength);
+
+	ostringstream os;
+	os << "Error : " << errorCode << ", " << errorText << endl;
+	SetErrorText(errorCode, os.str().c_str());
+
+	return errorCode;
+}
+
+// set all intensities to 0
+int CTTLSwitch::ZeroAll()
+{
+	vector<int> ints;
+	for (size_t i = 0; i < channels.size(); i++) ints.push_back(0);
+	int ret = lum_setMultipleIntensities(engine, &ints[0], (int)channels.size());
+	if (ret != LUM_OK)
+		return RetrieveError();
+	return DEVICE_OK;
+}
+
+// turns channels off but does not record change in channel state cache: channelStates
+// used by the shutter emulator to implement closed shutter state
+int CTTLSwitch::TurnAllOff()
+{
+	vector<lum_bool> states;
+	for (size_t i = 0; i < channels.size(); i++) states.push_back(false);
+	int ret = lum_setMultipleChannels(engine, &states[0], (int)channels.size());
+	if (ret != LUM_OK)
+		return RetrieveError();
+
+	return DEVICE_OK;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // Action handlers
 ///////////////////////////////////////////////////////////////////////////////
@@ -301,42 +414,47 @@ int CTTLSwitch::OnState(MM::PropertyBase* pProp, MM::ActionType eAct)
 
 		currentChannel = channelIndex;
    }
+	else if (eAct == MM::IsSequenceable)
+	{
+		LogMessage("MM::IsSequenceable event.");
+		pProp->SetSequenceable((long)channels.size());
+	}
+	else if (eAct == MM::AfterLoadSequence)
+	{
+		LogMessage("MM::AfterLoadSequence event.");
+		std::vector<std::string> sequence = pProp->GetSequence();
+		std::ostringstream os;
+		if (sequence.size() > channels.size())
+			return DEVICE_SEQUENCE_TOO_LARGE;
+
+		std::vector<int> chSequence;
+		try
+		{
+			for (auto& s : sequence)
+			{
+				chSequence.push_back(std::stoi(s));
+				if (chSequence.back() >= channels.size())
+					return ERR_TTL_INVALID_SEQUENCE;
+			}
+		}
+		catch (...)
+		{
+			return ERR_TTL_INVALID_SEQUENCE;
+		}
+		int ret = LoadChannelSequence(chSequence);
+		if (ret != DEVICE_OK)
+			return ret;
+	}
+	else if (eAct == MM::StartSequence)
+	{
+		LogMessage("MM::StartSequence event. No action taken.");
+	}
+	else if (eAct == MM::StopSequence)
+	{
+		LogMessage("MM::StopSequence event. No action taken.");
+	}
 
    return DEVICE_OK;
-}
-
-int CTTLSwitch::SetTTLController(const ChannelInfo& inf)
-{
-	int ttlId = inf.ttlId;
-	int exposureUs = (int)nearbyint(inf.exposureMs * 1000);
-
-	ostringstream os;
-	os << "SQ " << ttlId << " " << exposureUs;
-	int ret = SendSerialCommand(ttlPort.c_str(), os.str().c_str(), "\r");
-	LogMessage("Sent SQ command: " + os.str());
-	if (ret != DEVICE_OK)
-	{
-		LogMessage("Failed to send SQ command to " + ttlPort);
-		return ret;
-	}
-
-	::Sleep(500);
-	string answer;
-	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
-	LogMessage("Received SQ answer: " + answer);
-	if (ret != DEVICE_OK)
-	{
-		LogMessage("Failed to get answer from SQ command from " + ttlPort);
-		return ret;
-	}
-	answer.erase(std::remove(answer.begin(), answer.end(), '\n'), answer.end());
-	if (answer.size() == 0 || answer.at(0) != 'A')
-	{
-		LogMessage("SQ command failed: " + answer);
-		return ERR_TTL_COMMAND_FAILED;
-	}
-
-	return DEVICE_OK;
 }
 
 int CTTLSwitch::OnLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
@@ -367,12 +485,9 @@ int CTTLSwitch::OnLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
 
 int CTTLSwitch::OnSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-	return 0;
+	// TODO: this might not be needed
+	return DEVICE_NOT_YET_IMPLEMENTED;
 }
-
-// *****************************************************************************
-// Property handlers
-// *****************************************************************************
 
 int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
@@ -465,52 +580,6 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 	{
 		pProp->Set(it->second.exposureMs);
 	}
-
-	return DEVICE_OK;
-}
-
-int CTTLSwitch::LoadSequence(unsigned size, unsigned char* seq)
-{
-	return 0;
-}
-
-
-// Get error from light engine
-int CTTLSwitch::RetrieveError()
-{
-	const int maxLength(1024);
-	int errorCode;
-	char errorText[maxLength];
-	lum_getLastErrorCode(engine, &errorCode);
-	lum_getLastErrorText(engine, errorText, maxLength);
-
-	ostringstream os;
-	os << "Error : " << errorCode << ", " << errorText << endl;
-	SetErrorText(errorCode, os.str().c_str());
-
-	return errorCode;
-}
-
-// set all intensities to 0
-int CTTLSwitch::ZeroAll()
-{
-	vector<int> ints;
-	for (size_t i=0; i<channels.size(); i++) ints.push_back(0);
-	int ret = lum_setMultipleIntensities(engine, &ints[0], (int)channels.size());
-	if (ret != LUM_OK)
-		return RetrieveError();
-	return DEVICE_OK;
-}
-
-// turns channels off but does not record change in channel state cache: channelStates
-// used by the shutter emulator to implement closed shutter state
-int CTTLSwitch::TurnAllOff()
-{
-	vector<lum_bool> states;
-	for (size_t i = 0; i < channels.size(); i++) states.push_back(false);
-	int ret = lum_setMultipleChannels(engine, &states[0], (int)channels.size());
-	if (ret != LUM_OK)
-		return RetrieveError();
 
 	return DEVICE_OK;
 }

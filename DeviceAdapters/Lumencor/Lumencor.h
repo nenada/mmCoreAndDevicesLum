@@ -42,6 +42,7 @@
 
 #define ERR_TTL_CHANNEL_NAME         13101
 #define ERR_TTL_COMMAND_FAILED       13102
+#define ERR_TTL_INVALID_SEQUENCE     13103
 
 
 
@@ -55,6 +56,9 @@ static const char* g_Prop_Model = "Model";
 static const char* g_Prop_ModelName = "LEModel";
 static const char* g_Prop_SerialNumber = "SerialNumber";
 static const char* g_Prop_FirmwareVersion = "FirmwareVersion";
+static const char* g_Prop_ModuleVersion = "ModuleVersion";
+
+#define LUMENCOR_DEV_VERSION "1.0.0"
 
 class LightEngineAPI;
 
@@ -233,7 +237,7 @@ public:
    int OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
-   int LoadSequence(unsigned size, unsigned char* seq);
+   int LoadChannelSequence(const std::vector<int>& channelSequence);
    int SetTTLController(const ChannelInfo& inf);
 
    void* engine;
