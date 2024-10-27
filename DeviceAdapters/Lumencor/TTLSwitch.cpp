@@ -267,7 +267,7 @@ int CTTLSwitch::SetTTLController(const ChannelInfo& inf)
 		return ret;
 	}
 
-	::Sleep(100);
+	//::Sleep(100);
 	string answer;
 	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
 	LogMessage("Received SQ answer: " + answer);
