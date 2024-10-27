@@ -72,6 +72,9 @@
       <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)\CZI\acquire-zarr\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>acquire-zarr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(TargetPath) C:\"Program Files"\Micro-Manager-2.0</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -96,6 +99,9 @@
       <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)\CZI\acquire-zarr\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>acquire-zarr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(TargetPath) C:\"Program Files"\Micro-Manager-2.0</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="G2SBigTiffStorage.cpp" />

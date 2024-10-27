@@ -10,6 +10,7 @@
       "DeviceAdapters\\Okolab\\Okolab.vcxproj",
       "DeviceAdapters\\USBManager\\USBManager.vcxproj",
       "DeviceAdapters\\UserDefinedSerial\\UserDefinedSerial.vcxproj",
+      "DeviceAdapters\\go2scope\\go2scope.vcxproj",
       "MMDevice\\MMDevice-SharedRuntime.vcxproj",
       "MMDevice\\MMDevice-StaticRuntime.vcxproj",
       "SecretDeviceAdapters\\HamamatsuHam\\HamamatsuHam.vcxproj",
