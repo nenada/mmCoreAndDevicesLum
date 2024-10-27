@@ -20,13 +20,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <UseDebugLibraries>false</UseDebugLibraries>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <UseDebugLibraries>true</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -94,6 +94,7 @@
     <ClCompile Include="Devices\SLMInstance.cpp" />
     <ClCompile Include="Devices\StageInstance.cpp" />
     <ClCompile Include="Devices\StateInstance.cpp" />
+    <ClCompile Include="Devices\StorageInstance.cpp" />
     <ClCompile Include="Devices\XYStageInstance.cpp" />
     <ClCompile Include="Error.cpp" />
     <ClCompile Include="FrameBuffer.cpp" />
@@ -137,6 +138,7 @@
     <ClInclude Include="Devices\SLMInstance.h" />
     <ClInclude Include="Devices\StageInstance.h" />
     <ClInclude Include="Devices\StateInstance.h" />
+    <ClInclude Include="Devices\StorageInstance.h" />
     <ClInclude Include="Devices\XYStageInstance.h" />
     <ClInclude Include="Error.h" />
     <ClInclude Include="FrameBuffer.h" />
