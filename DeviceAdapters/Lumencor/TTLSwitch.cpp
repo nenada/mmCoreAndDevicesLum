@@ -27,7 +27,7 @@
 #include <boost/algorithm/string.hpp>
 
 using namespace std;
-
+const double ttlAnswerDelayMs = 50.0;
 const map<string, int> ttlMap =
 {
 	{"RED", 0},
@@ -223,13 +223,14 @@ int CTTLSwitch::Initialize()
 		LogMessage("No response from the TTL controller.");
 		return ret;
 	}
+	::Sleep(500);
 
 	ret = CreateProperty("TTLVersion", answer.c_str(), MM::String, true);
 	if (ret != DEVICE_OK)
 		return ret;
 
 	// initially set the first channel
-	ret = SetTTLController(channelLookup[channels[0]]);
+	ret = SetTTLController(channelLookup[channels[0]], 100.0);
 	if (ret != DEVICE_OK)
 		return ret;
 
@@ -252,7 +253,7 @@ int CTTLSwitch::Shutdown()
 }
 
 
-int CTTLSwitch::SetTTLController(const ChannelInfo& inf)
+int CTTLSwitch::SetTTLController(const ChannelInfo& inf, double delayMs)
 {
 	int ttlId = inf.ttlId;
 	int exposureUs = (int)nearbyint(inf.exposureMs * 1000);
@@ -267,7 +268,7 @@ int CTTLSwitch::SetTTLController(const ChannelInfo& inf)
 		return ret;
 	}
 
-	//::Sleep(100);
+	::Sleep((DWORD)(delayMs + 0.5));
 	string answer;
 	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
 	LogMessage("Received SQ answer: " + answer);
@@ -408,7 +409,7 @@ int CTTLSwitch::OnState(MM::PropertyBase* pProp, MM::ActionType eAct)
 		if (it == channelLookup.end())
 			return ERR_TTL_CHANNEL_NAME;
 
-		int ret = SetTTLController(it->second);
+		int ret = SetTTLController(it->second, ttlAnswerDelayMs);
 		if (ret != DEVICE_OK)
 			return ret;
 
@@ -475,7 +476,7 @@ int CTTLSwitch::OnLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
 		if (it == channelLookup.end())
 			return ERR_TTL_CHANNEL_NAME;
 
-		int ret = SetTTLController(it->second);
+		int ret = SetTTLController(it->second, ttlAnswerDelayMs);
 		if (ret != DEVICE_OK)
 			return ret;
 

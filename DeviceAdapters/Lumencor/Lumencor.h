@@ -238,7 +238,7 @@ public:
 
 private:
    int LoadChannelSequence(const std::vector<int>& channelSequence);
-   int SetTTLController(const ChannelInfo& inf);
+   int SetTTLController(const ChannelInfo& inf, double delayMs=0.0);
 
    void* engine;
    bool initialized;
