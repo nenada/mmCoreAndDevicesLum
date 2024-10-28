@@ -326,6 +326,38 @@ int CTTLSwitch::LoadChannelSequence(const std::vector<int>& sequence)
 	return DEVICE_OK;
 }
 
+int CTTLSwitch::LoadChannelSequence(const std::vector<std::string>& sequence)
+{
+	ostringstream os;
+	os << "SQ ";
+	for (size_t i = 0; i < sequence.size(); i++)
+	{
+		auto cInfo = channelLookup[sequence[i]];
+		os << cInfo.channelId << " " << (int)nearbyint(cInfo.exposureMs * 1000);
+		if (i < sequence.size() - 1)
+			os << " ";
+	}
+	int ret = SendSerialCommand(ttlPort.c_str(), os.str().c_str(), "\r");
+	LogMessage("Sent channel sequence SQ command: " + os.str());
+
+	string answer;
+	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
+	LogMessage("Received SQ answer: " + answer);
+	if (ret != DEVICE_OK)
+	{
+		LogMessage("Failed to get answer from SQ command from " + ttlPort);
+		return ret;
+	}
+	answer.erase(std::remove(answer.begin(), answer.end(), '\n'), answer.end());
+	if (answer.size() == 0 || answer.at(0) != 'A')
+	{
+		LogMessage("SQ command failed: " + answer);
+		return ERR_TTL_COMMAND_FAILED;
+	}
+
+	return DEVICE_OK;
+}
+
 // Get error from light engine
 int CTTLSwitch::RetrieveError()
 {
@@ -533,6 +565,9 @@ int CTTLSwitch::OnChannelSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
 				return ERR_TTL_CHANNEL_NAME;
 		}
 
+		int ret = LoadChannelSequence(tokens);
+		if (ret != DEVICE_OK)
+			return ret;
 	}
 	return DEVICE_OK;
 }

@@ -231,6 +231,7 @@ public:
    int OnState(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnLabel(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnSequence(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnChannelSequence(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnPort(MM::PropertyBase* pProp, MM::ActionType eAct);
@@ -238,6 +239,7 @@ public:
 
 private:
    int LoadChannelSequence(const std::vector<int>& channelSequence);
+   int LoadChannelSequence(const std::vector<std::string>& sequence);
    int SetTTLController(const ChannelInfo& inf, double delayMs=0.0);
 
    void* engine;
@@ -248,6 +250,7 @@ private:
    std::vector<std::string> channels;
    std::map<std::string, ChannelInfo> channelLookup;
    int currentChannel;
+   std::string channelSequenceCmd;
 
    int RetrieveError();
    int ZeroAll();
