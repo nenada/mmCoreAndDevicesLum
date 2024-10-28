@@ -198,6 +198,9 @@ int CTTLSwitch::Initialize()
 		AddAllowedValue(MM::g_Keyword_Label, channels[i].c_str());
 	}
 
+	// add sequence property
+
+
    // reset light engine
    // ------------------
 	ret = ZeroAll();
@@ -490,6 +493,48 @@ int CTTLSwitch::OnSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	// TODO: this might not be needed
 	return DEVICE_NOT_YET_IMPLEMENTED;
+}
+
+std::vector<std::string> splitString(const std::string& input) {
+	std::vector<std::string> tokens;
+	std::istringstream iss(input);
+
+	// Copy each whitespace-separated token into the vector
+	std::copy(std::istream_iterator<std::string>(iss),
+		std::istream_iterator<std::string>(),
+		std::back_inserter(tokens));
+
+	return tokens;
+}
+
+
+int CTTLSwitch::OnChannelSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(channelSequenceCmd.c_str());
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		// get channel
+		string chSeqCmd;
+		pProp->Get(chSeqCmd);
+		
+		// parse the sequence
+		auto tokens = splitString(chSeqCmd);
+		if (tokens.size() > channels.size())
+			return ERR_TTL_INVALID_SEQUENCE;
+
+		// check if all channels exist
+		for (auto& t : tokens)
+		{
+			auto it = channelLookup.find(t);
+			if (it == channelLookup.end())
+				return ERR_TTL_CHANNEL_NAME;
+		}
+
+	}
+	return DEVICE_OK;
 }
 
 int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
