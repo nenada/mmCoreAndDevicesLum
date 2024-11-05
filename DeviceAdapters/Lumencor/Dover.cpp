@@ -40,6 +40,8 @@ CDoverStage::CDoverStage() : initialized(false), zStage(nullptr)
 		zStage = dover::DOF5Stage::create(g_apiInstance);
 		g_doverInstanceCounter++;
 	}
+	//CreateProperty(MM::g_Keyword_Description, "Dover DOF5 Z stage", MM::String, true);
+	//CreateProperty(g_Prop_ModuleVersion, DOVER_API_VERSION, MM::String, true);
 }
 
 CDoverStage::~CDoverStage()
@@ -227,6 +229,8 @@ CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 		xyStage = dover::XYStage::create(g_apiInstance);
 		g_doverInstanceCounter++;
 	}
+	CreateProperty(MM::g_Keyword_Description, "Dover XY stage", MM::String, true);
+	CreateProperty(g_Prop_ModuleVersion, DOVER_API_VERSION, MM::String, true);
 }
 
 CDoverXYStage::~CDoverXYStage()
