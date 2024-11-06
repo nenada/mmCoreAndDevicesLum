@@ -51,7 +51,7 @@ CDoverStage::CDoverStage() : initialized(false), zStage(nullptr)
 CDoverStage::~CDoverStage()
 {
 	Shutdown();
-	int ret = dover_destroy_device(zStage);
+	int ret = dover_destroy_z_stage(zStage);
 	if (ret != DOVER_OK)
 		LogMessage("Error destroying Dover Z stage instance.");
 
@@ -231,7 +231,7 @@ CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 CDoverXYStage::~CDoverXYStage()
 {
 	Shutdown();
-	int ret = dover_destroy_device(xyStage);
+	int ret = dover_destroy_xy_stage(xyStage);
 	if (ret != DOVER_OK)
 		LogMessage("Error destroying Dover XY stage instance.");
 
@@ -269,7 +269,7 @@ int CDoverXYStage::Initialize()
 		return ret;
 
 	// TODO: define property for trigger value
-	ret = dover_set_digital_trigger(xyStage, 1); // corresponds to "InMotion"
+	ret = dover_xy_set_digital_trigger(xyStage, 1); // corresponds to "InMotion"
 	if (ret != DOVER_OK)
 		return ret;
 
