@@ -25,19 +25,23 @@
 #include "DoverAPI.h"
 
 static int g_doverInstanceCounter(0);
-dover::DoverApi* g_apiInstance = nullptr;
+void* g_apiInstance = nullptr;
 const double g_umPerStep(0.005); // TODO: this should be picked up from the Dover configuration file
 
 CDoverStage::CDoverStage() : initialized(false), zStage(nullptr)
 {
 	if (g_apiInstance == nullptr)
 	{
-		g_apiInstance = dover::DoverApi::createInstance();
+		int ret =  dover_create_api_instance(&g_apiInstance);
+		if (ret != DOVER_OK)
+			LogMessage("Error creating DoverAPI instance.");
 		g_doverInstanceCounter = 0;
 	}
 	if (g_apiInstance)
 	{
-		zStage = dover::DOF5Stage::create(g_apiInstance);
+		int ret = dover_create_z_stage(g_apiInstance, &zStage);
+		if (ret != DOVER_OK)
+			LogMessage("Error creating Dover Z stage instance.");
 		g_doverInstanceCounter++;
 	}
 }
@@ -45,14 +49,20 @@ CDoverStage::CDoverStage() : initialized(false), zStage(nullptr)
 CDoverStage::~CDoverStage()
 {
 	Shutdown();
-	dover::DOF5Stage::destroy(zStage);
+	int ret = dover_destroy_device(zStage);
+	if (ret != DOVER_OK)
+		LogMessage("Error destroying Dover Z stage instance.");
+
 	g_doverInstanceCounter--;
 	g_doverInstanceCounter = max(0, g_doverInstanceCounter);
 
 	// last instance releases the API
 	if (g_doverInstanceCounter == 0)
 	{
-		dover::DoverApi::destroyInstance(g_apiInstance);
+		ret = dover_destroy_api_instance(g_apiInstance);
+		if (ret != DOVER_OK)
+			LogMessage("Error destroying DoverAPI instance.");
+
 		g_apiInstance = nullptr;
 	}
 }
@@ -61,7 +71,7 @@ bool CDoverStage::Busy()
 {
 	try
 	{
-		return zStage->IsBusy();
+		return dover_is_busy(zStage) != 0;
 	}
 	catch (std::exception& e)
 	{
@@ -77,15 +87,13 @@ void CDoverStage::GetName(char* pszName) const
 
 int CDoverStage::Initialize()
 {
-	try
-	{ 
-		zStage->Initialize();
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
-		return DEVICE_NATIVE_MODULE_FAILED;
-	}
+	if (!zStage)
+		return ERR_DOVER_INITIALIZE;
+
+	int ret = dover_initialize(zStage);
+	if (ret != DOVER_OK)
+		return ret;
+
 	auto pAct = new CPropertyAction(this, &CDoverStage::OnPosition);
 	CreateProperty(MM::g_Keyword_Position, "0", MM::Float, false, pAct);
 	double low, high;
@@ -106,15 +114,9 @@ int CDoverStage::Shutdown()
 
 int CDoverStage::Home()
 {
-	try
-	{
-		zStage->Home();
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
+	int ret = dover_home(zStage);
+	if (ret != DOVER_OK)
 		return ERR_DOVER_HOME_FAILED;
-	}
 	return DEVICE_OK;
 }
 
@@ -127,7 +129,7 @@ int CDoverStage::SetPositionUm(double pos)
 
 	try
 	{
-		zStage->SetPosition(pos / 1000.0);
+		dover_set_position(zStage, 0, pos / 1000.0);
 	}
 	catch (std::exception& e)
 	{
@@ -139,15 +141,12 @@ int CDoverStage::SetPositionUm(double pos)
 
 int CDoverStage::GetPositionUm(double& pos)
 {
-	try
-	{
-		pos = zStage->GetPosition() * 1000.0;
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
-		return ERR_DOVER_CMD_FAILED;
-	}
+	double doverPos;
+	int ret = dover_get_position(zStage, 0, &doverPos);
+	if (ret != DOVER_OK)
+		return ret;
+	pos = doverPos * 1000.0;
+
 	return DEVICE_OK;
 }
 
@@ -159,30 +158,22 @@ double CDoverStage::GetStepSize()
 int CDoverStage::SetPositionSteps(long steps)
 {
 	double posUm = steps * g_umPerStep;
-	try
-	{
-		zStage->SetPosition(posUm / 1000.0);
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
-		return ERR_DOVER_CMD_FAILED;
-	}
+	int ret = dover_set_position(zStage, 0, posUm / 1000.0);
+	if (ret != DOVER_OK)
+		return ret;
+	
 	return DEVICE_OK;
 }
 
 int CDoverStage::GetPositionSteps(long& steps)
 {
-	try
-	{
-		auto posUm = zStage->GetPosition() * 1000.0;
-		steps = (long)(posUm / g_umPerStep + 0.5);
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
-		return ERR_DOVER_CMD_FAILED;
-	}
+	double doverPos;
+	int ret = dover_get_position(zStage, 0, &doverPos);
+	if (ret != DOVER_OK)
+		return ret;
+
+	auto posUm = doverPos * 1000.0;
+	steps = (long)(posUm / g_umPerStep + 0.5);
 	return DEVICE_OK;
 }
 
@@ -219,12 +210,16 @@ CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 {
 	if (g_apiInstance == nullptr)
 	{
-		g_apiInstance = dover::DoverApi::createInstance();
+		int ret = dover_create_api_instance(&g_apiInstance);
+		if (ret != DOVER_OK)
+			LogMessage("Error creating DoverAPI instance.");
 		g_doverInstanceCounter = 0;
 	}
 	if (g_apiInstance)
 	{
-		xyStage = dover::XYStage::create(g_apiInstance);
+		int ret = dover_create_xy_stage(g_apiInstance, &xyStage);
+		if (ret != DOVER_OK)
+			LogMessage("Error creating Dover XY stage instance.");
 		g_doverInstanceCounter++;
 	}
 }
@@ -232,29 +227,27 @@ CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 CDoverXYStage::~CDoverXYStage()
 {
 	Shutdown();
-	dover::XYStage::destroy(xyStage);
+	int ret = dover_destroy_device(xyStage);
+	if (ret != DOVER_OK)
+		LogMessage("Error destroying Dover XY stage instance.");
+
 	g_doverInstanceCounter--;
 	g_doverInstanceCounter = max(0, g_doverInstanceCounter);
 
 	// last instance releases the API
 	if (g_doverInstanceCounter == 0)
 	{
-		dover::DoverApi::destroyInstance(g_apiInstance);
+		ret = dover_destroy_api_instance(g_apiInstance);
+		if (ret != DOVER_OK)
+			LogMessage("Error destroying DoverAPI instance.");
+
 		g_apiInstance = nullptr;
 	}
 }
 
 bool CDoverXYStage::Busy()
 {
-	try
-	{
-		return xyStage->IsBusy();
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
-		return false;
-	}
+	return dover_is_busy(xyStage) != 0;
 }
 
 void CDoverXYStage::GetName(char* pszName) const
@@ -264,18 +257,27 @@ void CDoverXYStage::GetName(char* pszName) const
 
 int CDoverXYStage::Initialize()
 {
-	try
-	{
-		xyStage->Initialize();
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
-		return DEVICE_NATIVE_MODULE_FAILED;
-	}
+	if (!xyStage)
+		return ERR_DOVER_INITIALIZE;
+
+	int ret = dover_initialize(xyStage);
+	if (ret != DOVER_OK)
+		return ret;
 
 	// TODO: define property for trigger value
-	xyStage->SetDigitalOutputTrigger(1); // corresponds to "InMotion"
+	ret = dover_set_digital_trigger(xyStage, 1); // corresponds to "InMotion"
+	if (ret != DOVER_OK)
+		return ret;
+
+	double minX, minY, maxX, maxY;
+	GetLimitsUm(minX, maxX, minY, maxY);
+	auto pAct = new CPropertyAction(this, &CDoverXYStage::OnPositionX);
+	CreateProperty(g_Prop_DoverX, "0.0", MM::Float, false, pAct);
+	SetPropertyLimits(g_Prop_DoverX, minX, maxX);
+
+	pAct = new CPropertyAction(this, &CDoverXYStage::OnPositionY);
+	CreateProperty(g_Prop_DoverY, "0.0", MM::Float, false, pAct);
+	SetPropertyLimits(g_Prop_DoverY, minY, maxY);
 
 	UpdateStatus();
 	initialized = true;
@@ -293,7 +295,6 @@ int CDoverXYStage::Shutdown()
 double CDoverXYStage::GetStepSize()
 {
 	return g_umPerStep;
-
 }
 
 int CDoverXYStage::SetPositionSteps(long x, long y)
@@ -308,47 +309,41 @@ int CDoverXYStage::SetPositionSteps(long x, long y)
 	if (xposUm >= xhigh || xposUm <= xlow || yposUm <= ylow || yposUm >= yhigh)
 		return ERR_DOVER_LIMITS_EXCEEDED;
 
-	try
-	{
-		xyStage->SetPosition(xposUm / 1000.0, yposUm / 1000.0);
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
-		return ERR_DOVER_CMD_FAILED;
-	}
+	int ret = dover_set_position(xyStage, 0, xposUm / 1000.0);
+	if (ret != DOVER_OK)
+		return ret;
+
+	ret = dover_set_position(xyStage, 1, yposUm / 1000.0);
+	if (ret != DOVER_OK)
+		return ret;
+
 	return DEVICE_OK;
 }
 
 int CDoverXYStage::GetPositionSteps(long& x, long& y)
 {
-	try
-	{
-		auto xposUm = xyStage->GetPositionX() * 1000.0;
-		x = (long)(xposUm / g_umPerStep + 0.5);
-		auto yposUm = xyStage->GetPositionY() * 1000.0;
-		y = (long)(yposUm / g_umPerStep + 0.5);
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
-		return ERR_DOVER_CMD_FAILED;
-	}
+	double doverXPos, doverYPos;
+	int ret = dover_get_position(xyStage, 0, &doverXPos);
+	if (ret != DOVER_OK)
+		return ret;
+	ret = dover_get_position(xyStage, 1, &doverYPos);
+	if (ret != DOVER_OK)
+		return ret;
+
+	auto xposUm = doverXPos * 1000.0;
+	x = (long)(xposUm / g_umPerStep + 0.5);
+	auto yposUm = doverYPos * 1000.0;
+	y = (long)(yposUm / g_umPerStep + 0.5);
+
 	return DEVICE_OK;
 }
 
-
 int CDoverXYStage::Home()
 {
-	try
-	{
-		xyStage->Home();
-	}
-	catch (std::exception& e)
-	{
-		LogMessage(e.what());
-		return ERR_DOVER_HOME_FAILED;
-	}
+	int ret = dover_home(xyStage);
+	if (ret != DOVER_OK)
+		return ret;
+
 	return DEVICE_OK;
 }
 
@@ -392,7 +387,45 @@ double CDoverXYStage::GetStepSizeYUm()
 	return g_umPerStep;
 }
 
-int CDoverXYStage::OnPosition(MM::PropertyBase*, MM::ActionType)
+int CDoverXYStage::OnPositionX(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
+	if (eAct == MM::BeforeGet)
+	{
+		double pos;
+		int ret = dover_get_position(xyStage, 0, &pos);
+		if (ret != DOVER_OK)
+			return ret;
+		pProp->Set(pos * 1000.0);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long pos;
+		pProp->Get(pos);
+		int ret = dover_set_position(xyStage, 0, pos / 1000.0);
+		if (ret != DOVER_OK)
+			return ret;
+	}
+
 	return DEVICE_OK;
+}
+
+int CDoverXYStage::OnPositionY(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		double pos;
+		int ret = dover_get_position(xyStage, 1, &pos);
+		if (ret != DOVER_OK)
+			return ret;
+		pProp->Set(pos * 1000.0);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long pos;
+		pProp->Get(pos);
+		int ret = dover_set_position(xyStage, 1, pos / 1000.0);
+		if (ret != DOVER_OK)
+			return ret;
+	}
+
 }
