@@ -39,6 +39,7 @@
 #define ERR_DOVER_CMD_FAILED         13005
 #define ERR_DOVER_HOME_FAILED        13006
 #define ERR_DOVER_LIMITS_EXCEEDED    13007
+#define ERR_DOVER_INITIALIZE         13008
 
 #define ERR_TTL_CHANNEL_NAME         13101
 #define ERR_TTL_COMMAND_FAILED       13102
@@ -57,16 +58,12 @@ static const char* g_Prop_ModelName = "LEModel";
 static const char* g_Prop_SerialNumber = "SerialNumber";
 static const char* g_Prop_FirmwareVersion = "FirmwareVersion";
 static const char* g_Prop_ModuleVersion = "ModuleVersion";
+static const char* g_Prop_DoverX = "X";
+static const char* g_Prop_DoverY = "Y";
 
 #define LUMENCOR_DEV_VERSION "1.0.1"
 
 class LightEngineAPI;
-
-namespace dover
-{
-   class XYStage;
-   class DOF5Stage;
-}
 
 class LightEngine : public CShutterBase<LightEngine>
 {
@@ -150,7 +147,7 @@ public:
    int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
-   dover::DOF5Stage* zStage;
+   void* zStage;
    bool initialized;
 };
 
@@ -187,10 +184,12 @@ public:
 
    // action interface
    // ----------------
-   int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnPositionX(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnPositionY(MM::PropertyBase* pProp, MM::ActionType eAct);
+
 
 private:
-   dover::XYStage* xyStage;
+   void* xyStage;
    bool initialized;
 };
 
