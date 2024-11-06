@@ -225,7 +225,7 @@ CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 		g_doverInstanceCounter++;
 	}
 	CreateProperty(MM::g_Keyword_Description, "Dover XY stage", MM::String, true);
-	CreateProperty(g_Prop_ModuleVersion, DOVER_API_VERSION, MM::String, true);
+	CreateProperty(g_Prop_ModuleVersion, DOVER_API_VER, MM::String, true);
 }
 
 CDoverXYStage::~CDoverXYStage()
@@ -432,4 +432,5 @@ int CDoverXYStage::OnPositionY(MM::PropertyBase* pProp, MM::ActionType eAct)
 			return ret;
 	}
 
+	return DEVICE_OK;
 }
