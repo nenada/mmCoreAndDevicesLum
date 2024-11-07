@@ -745,6 +745,13 @@ void CMMCore::assignDefaultRole(std::shared_ptr<DeviceInstance> pDevice)
          LOG_INFO(coreLogger_) << "Default galvo set to " << label;
          break;
 
+      case MM::StorageDevice:
+         currentStorage_ =
+            std::static_pointer_cast<StorageInstance>(pDevice);
+         LOG_INFO(coreLogger_) << "Default storage set to " << label;
+         break;
+
+
       default:
          // no action on unrecognized device
          break;
@@ -7093,6 +7100,7 @@ void CMMCore::InitializeErrorMessages()
    errorText_[MMERR_NullPointerException] = "Null Pointer Exception.";
    errorText_[MMERR_CreatePeripheralFailed] = "Hub failed to create specified peripheral device.";
    errorText_[MMERR_BadAffineTransform] = "Bad affine transform.  Affine transforms need to have 6 numbers; 2 rows of 3 column.";
+   errorText_[MMERR_StorageNotAvailable] = "Storage not loaded or initialized.";
 }
 
 void CMMCore::CreateCoreProperties()
@@ -7542,6 +7550,313 @@ std::vector<std::string> CMMCore::getLoadedPeripheralDevices(const char* hubLabe
 {
    CheckDeviceLabel(hubLabel);
    return deviceManager_->GetLoadedPeripherals(hubLabel);
+}
+
+void CMMCore::setStorageDevice(const char* storageLabel) throw(CMMError)
+{
+   // TODO: prevent setting storage device if the current one has any datasets open
+ 
+   if (storageLabel && strlen(storageLabel) > 0)
+   {
+      currentStorage_ =
+         deviceManager_->GetDeviceOfType<StorageInstance>(storageLabel);
+      LOG_INFO(coreLogger_) << "Default storage set to " << storageLabel;
+   }
+   else
+   {
+      currentStorage_.reset();
+      LOG_INFO(coreLogger_) << "Default storage unset";
+   }
+   properties_->Refresh();
+
+   std::string newStorageLabel = getStorageDevice();
+   {
+      MMThreadGuard scg(stateCacheLock_);
+      stateCache_.addSetting(PropertySetting(MM::g_Keyword_CoreDevice, MM::g_Keyword_CoreCamera, newStorageLabel.c_str()));
+   }
+
+}
+
+std::string CMMCore::getStorageDevice() throw(CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      return storage->GetLabel();
+   }
+   return std::string();
+}
+
+/**
+ * Create new dataset in the specifed path. Fails if the path already exists.
+ * 
+ * \param path - parent directory for the dataset
+ * \param name - name for the dataset
+ * \param shape - array of max coordinates for each dimension (not counting image x and y)
+ * \param meta - serialized JSON metadata
+ * \return - handle for the new dataset
+ */
+std::string CMMCore::createDataset(const char* path, const char* name, const std::vector<long>& shape, MM::StorageDataType pixelType, const char* meta) throw (CMMError)
+{
+   // NOTE: vector<long> is used instead of vector<int> in the signature because of Swig idiosyncracies
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::string handle;
+      std::vector<int> intShape(shape.begin(), shape.end());
+      int ret = storage->Create(path, name, intShape, pixelType, meta, handle);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+      return handle;
+   }
+   throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+ }
+
+/**
+ * Close the currently open dataset to prevent further changes.
+ * After closing the handle becomes invalid.
+ * 
+ * \param handle - handle to the open dataset
+ */
+void CMMCore::closeDataset(const char* handle) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      int ret = storage->Close(handle);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+   }
+   else
+      throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+/**
+ * Open an existing dataset in the specifed path.
+ *
+ * \param path - parent directory for the dataset
+ * \param name - name for the dataset
+ * \return - handle for the opened dataset
+ */
+std::string CMMCore::loadDataset(const char* path) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::string handle;
+      int ret = storage->Load(path, handle);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+      return handle;
+   }
+   throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+std::vector<long> CMMCore::getDatasetShape(const char* handle) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::vector<long> shape;
+      int ret = storage->GetShape(handle, shape);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+      return shape;
+   }
+   throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+MM::StorageDataType CMMCore::getDatasetPixelType(const char* handle) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      MM::StorageDataType pixType;
+      int ret = storage->GetPixelType(handle, pixType);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+      return pixType;
+   }
+   throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+/**
+ * Adds a new image to the dataset. Width, hight and depth define the expected pixel array size.
+ * Fails if coordinates do not fit into the dataset shape, or if the image dimenions are not supported.
+ * It can also fail if the underlying implementation does not support the order of image coordinates.
+ * 
+ * \param handle - handle to the open dataset
+ * \param sizeInBytes - size of the pixel array
+ * \param pixels - pixel array
+ * \param coordinates - coordinates of the image in the dimension space
+ * \param imageMeta - serialized JSON with image specific metadata
+ */
+void CMMCore::addImage(const char* handle, int sizeInBytes, const STORAGEIMG pixels, const std::vector<long>& coordinates, const char* imageMeta) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::vector<int> coords(coordinates.begin(), coordinates.end());
+      int ret = storage->AddImage(handle, sizeInBytes, pixels, coords, imageMeta);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+   }
+   else
+      throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+/**
+ * Adds a new image to the dataset. Width, hight and depth define the expected pixel array size.
+ * Fails if coordinates do not fit into the dataset shape, or if the image dimenions are not supported.
+ * It can also fail if the underlying implementation does not support the order of image coordinates.
+ * 
+ * \param handle - handle to the open dataset
+ * \param sizeInShorts - size of the pixel array
+ * \param pixels - pixel array
+ * \param coordinates - coordinates of the image in the dimension space
+ * \param imageMeta - serialized JSON with image specific metadata
+ */
+void CMMCore::addImage(const char* handle, int sizeInShorts, const STORAGEIMG16 pixels, const std::vector<long>& coordinates, const char* imageMeta) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::vector<int> coords(coordinates.begin(), coordinates.end());
+      int ret = storage->AddImage(handle, sizeInShorts * 2, reinterpret_cast<unsigned char*>(pixels), coords, imageMeta);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+   }
+   else
+      throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+/**
+ * Configure metadata for a given dimension.
+ * 
+ * \param handle - handle for the dataset
+ * \param dimension - dimension index
+ * \param name - name of the dimension
+ * \param meaning - Z,T,C, etc. (physical meaning)
+ */
+void CMMCore::configureDimension(const char* handle, int dimension, const char* name, const char* meaning) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      int ret = storage->ConfigureDimension(handle, dimension, name, meaning);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+   }
+   else
+      throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+/**
+ * Configure a particular coordinate name. E.g. channel name or position name.
+ * 
+ * \param handle - dataset handle
+ * \param dimension - dimension index
+ * \param coordinate - coordinate index
+ * \param name - coordinate name
+ */
+void CMMCore::configureCoordinate(const char* handle, int dimension, int coordinate, const char* name) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      int ret = storage->ConfigureCoordinate(handle, dimension, coordinate, name);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+   }
+   else
+      throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+
+std::string CMMCore::getSummaryMeta(const char* handle) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::string meta;
+      int ret = storage->GetSummaryMeta(handle, meta);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+      return meta;
+   }
+   throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+std::string CMMCore::getImageMeta(const char* handle, const std::vector<long>& coordinates) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::string meta;
+		std::vector<int> coords(coordinates.begin(), coordinates.end());
+      int ret = storage->GetImageMeta(handle, coords, meta);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+      }
+      return meta;
+   }
+   throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
+}
+
+STORAGEIMGOUT CMMCore::getImage(const char* handle, const std::vector<long>& coordinates) throw (CMMError)
+{
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::vector<int> coords(coordinates.begin(), coordinates.end());
+      const unsigned char* img = storage->GetImage(handle, coords);
+      return const_cast<unsigned char*>(img);
+   }
+   throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
 }
 
 std::string CMMCore::getInstalledDeviceDescription(const char* hubLabel, const char* deviceLabel) throw (CMMError)

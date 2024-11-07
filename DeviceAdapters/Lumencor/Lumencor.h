@@ -36,12 +36,32 @@
 #define ERR_INIT							 13003
 #define ERR_INTERNAL						 13004
 
+#define ERR_DOVER_CMD_FAILED         13005
+#define ERR_DOVER_HOME_FAILED        13006
+#define ERR_DOVER_LIMITS_EXCEEDED    13007
+#define ERR_DOVER_INITIALIZE         13008
+
+#define ERR_TTL_CHANNEL_NAME         13101
+#define ERR_TTL_COMMAND_FAILED       13102
+#define ERR_TTL_INVALID_SEQUENCE     13103
+
+
+
 static const char* g_LightEngine = "LightEngine";
+static const char* g_TTLSwitch = "TTLSwitch";
+static const char* g_DoverStage = "DoverStage";
+static const char* g_DoverXYStage = "DoverXYStage";
 static const char* g_Prop_Connection = "Connection";
+static const char* g_Prop_ComPort = "TTLGENComPort";
 static const char* g_Prop_Model = "Model";
 static const char* g_Prop_ModelName = "LEModel";
 static const char* g_Prop_SerialNumber = "SerialNumber";
 static const char* g_Prop_FirmwareVersion = "FirmwareVersion";
+static const char* g_Prop_ModuleVersion = "ModuleVersion";
+static const char* g_Prop_DoverX = "X";
+static const char* g_Prop_DoverY = "Y";
+
+#define LUMENCOR_DEV_VERSION "1.0.1"
 
 class LightEngineAPI;
 
@@ -85,11 +105,156 @@ private:
 	bool shutterState;
 	std::vector<bool> channelStates; // cache for channel states
 
-	int RetrieveError(void* engine);
+	int RetrieveError();
 	int ZeroAll();
 	int ApplyStates();
 	int TurnAllOff();
 };
 
+//////////////////////////////////////////////////////////////////////////////
+// CDoverStage
+// Single-axis Dover stage
+//////////////////////////////////////////////////////////////////////////////
+
+class CDoverStage : public CStageBase<CDoverStage>
+{
+public:
+   CDoverStage();
+   ~CDoverStage();
+
+   bool Busy();
+   void GetName(char* pszName) const;
+
+   int Initialize();
+   int Shutdown();
+
+   // Stage API
+   int Home();
+   int SetPositionUm(double pos);
+   int GetPositionUm(double& pos);
+   double GetStepSize();
+   int SetPositionSteps(long steps);
+   int GetPositionSteps(long& steps);
+   int GetLimits(double& lower, double& upper);
+   int SetOrigin() { return DEVICE_UNSUPPORTED_COMMAND; }
+
+   bool IsContinuousFocusDrive() const { return false; }
+   int IsStageSequenceable(bool& isSequenceable) const { isSequenceable = false; return DEVICE_OK; }
+
+
+   // action interface
+   // ----------------
+   int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
+
+private:
+   void* zStage;
+   bool initialized;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+// CDoverXYStage
+// Dover XY stage
+//////////////////////////////////////////////////////////////////////////////
+
+class CDoverXYStage : public CXYStageBase<CDoverXYStage>
+{
+public:
+   CDoverXYStage();
+   ~CDoverXYStage();
+
+   bool Busy();
+   void GetName(char* pszName) const;
+
+   int Initialize();
+   int Shutdown();
+
+   double GetStepSize();
+   int SetPositionSteps(long x, long y);
+   int GetPositionSteps(long& x, long& y);
+   int Home();
+   int Stop();
+
+   int GetLimitsUm(double& xMin, double& xMax, double& yMin, double& yMax);
+   int GetStepLimits(long& /*xMin*/, long& /*xMax*/, long& /*yMin*/, long& /*yMax*/);
+   double GetStepSizeXUm();
+   double GetStepSizeYUm();
+
+   int IsXYStageSequenceable(bool& isSequenceable) const { isSequenceable = false; return DEVICE_OK; }
+   int SetOrigin() { return DEVICE_UNSUPPORTED_COMMAND; }
+
+   // action interface
+   // ----------------
+   int OnPositionX(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnPositionY(MM::PropertyBase* pProp, MM::ActionType eAct);
+
+
+private:
+   void* xyStage;
+   bool initialized;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+// CTTLSwitch
+// TTL controlled light source with hardware timing and sequencing
+// Requires TTLGEN device attached to the light engine
+//////////////////////////////////////////////////////////////////////////////
+
+struct ChannelInfo
+{
+   std::string name;
+   int channelId;
+   int ttlId;
+   double exposureMs;
+
+   ChannelInfo() : channelId(0), ttlId(0), exposureMs(5.0) {}
+};
+
+class CTTLSwitch : public CStateDeviceBase<CTTLSwitch>
+{
+public:
+   CTTLSwitch();
+   ~CTTLSwitch();
+
+   // MMDevice API
+   // ------------
+   int Initialize();
+   int Shutdown();
+
+   void GetName(char* pszName) const;
+   bool Busy() { return false; }
+
+   unsigned long GetNumberOfPositions()const { return (unsigned long)channels.size(); }
+
+   // action interface
+   // ----------------
+   int OnState(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnLabel(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnSequence(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnChannelSequence(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnPort(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct);
+
+private:
+   int LoadChannelSequence(const std::vector<int>& channelSequence);
+   int LoadChannelSequence(const std::vector<std::string>& sequence);
+   int SetTTLController(const ChannelInfo& inf, double delayMs=0.0);
+
+   void* engine;
+   bool initialized;
+   std::string model;
+   std::string connection;
+   std::string ttlPort;
+   std::vector<std::string> channels;
+   std::map<std::string, ChannelInfo> channelLookup;
+   int currentChannel;
+   std::string channelSequenceCmd;
+
+   int RetrieveError();
+   int ZeroAll();
+   int TurnAllOff();
+
+};
 
 #endif //_LUMENCOR_H_

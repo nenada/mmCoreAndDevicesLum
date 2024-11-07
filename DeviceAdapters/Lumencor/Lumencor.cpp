@@ -37,6 +37,9 @@ using namespace std;
 MODULE_API void InitializeModuleData()
 {
    RegisterDevice(g_LightEngine, MM::ShutterDevice, "Lumencor Light Engine");
+	RegisterDevice(g_DoverStage, MM::StageDevice, "Dover DOF5 Z Stage");
+	RegisterDevice(g_DoverXYStage, MM::XYStageDevice, "Dover XY Stage");
+	RegisterDevice(g_TTLSwitch, MM::StateDevice, "Light Engine with TTL Switch");
 }
 
 MODULE_API MM::Device* CreateDevice(const char* deviceName)
@@ -48,6 +51,19 @@ MODULE_API MM::Device* CreateDevice(const char* deviceName)
    {
       return new LightEngine();
    }
+	else if (strcmp(deviceName, g_TTLSwitch) == 0)
+	{
+		return new CTTLSwitch();
+	}
+	else if (strcmp(deviceName, g_DoverStage) == 0)
+	{
+		return new CDoverStage();
+	}
+	else if (strcmp(deviceName, g_DoverXYStage) == 0)
+	{
+		return new CDoverXYStage();
+	}
+
 
    return 0;
 }
@@ -83,7 +99,7 @@ LightEngine::LightEngine() :
    // Description                                                            
    CreateProperty(MM::g_Keyword_Description, "Lumencor Light Engine", MM::String, true);
 
-   // Port                                                                   
+   // connection                                                                   
    CPropertyAction* pAct = new CPropertyAction(this, &LightEngine::OnConnection);
    CreateProperty(g_Prop_Connection, "", MM::String, false, pAct, true);
 
@@ -154,14 +170,14 @@ int LightEngine::Initialize()
 	}
 
 	if (ret != LUM_OK)
-		return RetrieveError(engine);
+		return RetrieveError();
 
 	// get light engine info
 	// obtain model
 	char engModel[LUM_MAX_MESSAGE_LENGTH];
 	ret = lum_getModel(engine, engModel, LUM_MAX_MESSAGE_LENGTH);
 	if (ret != LUM_OK)
-		return RetrieveError(engine);
+		return RetrieveError();
 	CreateProperty(g_Prop_ModelName, engModel, MM::String, true);
 
 	// obtain firmware version
@@ -171,7 +187,7 @@ int LightEngine::Initialize()
 		char version[LUM_MAX_MESSAGE_LENGTH];
 		ret = lum_getVersion(engine, version, LUM_MAX_MESSAGE_LENGTH);
 		if (ret != LUM_OK)
-			return RetrieveError(engine);
+			return RetrieveError();
 		CreateProperty(g_Prop_FirmwareVersion, version, MM::String, true);
 	}
 
@@ -182,20 +198,20 @@ int LightEngine::Initialize()
 		char serialNumber[LUM_MAX_MESSAGE_LENGTH];
 		ret = lum_getSerialNumber(engine, serialNumber, LUM_MAX_MESSAGE_LENGTH);
 		if (ret != LUM_OK)
-			return RetrieveError(engine);
+			return RetrieveError();
 		CreateProperty(g_Prop_SerialNumber, serialNumber, MM::String, true);
 	}
 
 	int maxIntensity(0);
 	ret = lum_getMaximumIntensity(engine, &maxIntensity);
 	if (ret != LUM_OK)
-		return RetrieveError(engine);
+		return RetrieveError();
 
 	// discover light channels
 	int numChannels(0);
 	ret = lum_getNumberOfChannels(engine, &numChannels);
 	if (ret != LUM_OK)
-		return RetrieveError(engine);
+		return RetrieveError();
 
 	channels.clear();
 	for (int i = 0; i < numChannels; i++)
@@ -203,7 +219,7 @@ int LightEngine::Initialize()
 		char chName[LUM_MAX_MESSAGE_LENGTH];
 		ret = lum_getChannelName(engine, i, chName, LUM_MAX_MESSAGE_LENGTH);
 		if (ret != LUM_OK)
-			return RetrieveError(engine);
+			return RetrieveError();
 
 		channels.push_back(chName);
 	}
@@ -392,14 +408,14 @@ int LightEngine::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct
       pProp->Get(val);
 		int ret = lum_setIntensity(engine, channelIdx, val);
       if (ret != LUM_OK)
-			return RetrieveError(engine);
+			return RetrieveError();
    }
    if (eAct == MM::BeforeGet)
    {
       int inten;
       int ret = lum_getIntensity(engine, channelIdx, &inten);
       if (ret != DEVICE_OK)
-         RetrieveError(engine);
+         RetrieveError();
 
       pProp->Set((long)inten);
    }
@@ -430,7 +446,7 @@ int LightEngine::OnChannelEnable(MM::PropertyBase* pProp, MM::ActionType eAct)
 			// apply command to light engine if shutter is open
 			int ret = lum_setChannel(engine, channelIdx, enable == 0 ? false : true);
 			if (ret != LUM_OK)
-				return RetrieveError(engine);
+				return RetrieveError();
 		}
 
 		channelStates[channelIdx] = enable == 0 ? false : true;
@@ -443,7 +459,7 @@ int LightEngine::OnChannelEnable(MM::PropertyBase* pProp, MM::ActionType eAct)
 }
 
 // Get error from light engine
-int LightEngine::RetrieveError(void* engine)
+int LightEngine::RetrieveError()
 {
 	const int maxLength(1024);
 	int errorCode;
@@ -466,7 +482,7 @@ int LightEngine::TurnAllOff()
 	for (size_t i=0; i<channels.size(); i++) states.push_back(false);
 	int ret = lum_setMultipleChannels(engine, &states[0], (int)channels.size());
 	if (ret != LUM_OK)
-		return RetrieveError(engine);
+		return RetrieveError();
 
 	// we do not update channel state cache because this is a virtual shutter operation 
 	shutterState = false; // signals that shutter is now closed
@@ -480,7 +496,7 @@ int LightEngine::ZeroAll()
 	for (size_t i=0; i<channels.size(); i++) ints.push_back(0);
 	int ret = lum_setMultipleIntensities(engine, &ints[0], (int)channels.size());
 	if (ret != LUM_OK)
-		return RetrieveError(engine);
+		return RetrieveError();
 	return DEVICE_OK;
 }
 
@@ -491,8 +507,9 @@ int LightEngine::ApplyStates()
 	for (size_t i=0; i<channels.size(); i++) states.push_back(channelStates[i]);
 	int ret = lum_setMultipleChannels(engine, &states[0], (int)channels.size());
 	if (ret != LUM_OK)
-		return RetrieveError(engine);
+		return RetrieveError();
 	shutterState = true; // signals that shutter is now open
 
 	return DEVICE_OK;
 }
+
