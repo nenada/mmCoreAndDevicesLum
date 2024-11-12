@@ -453,9 +453,7 @@ int CTTLSwitch::OnState(MM::PropertyBase* pProp, MM::ActionType eAct)
 	else if (eAct == MM::IsSequenceable)
 	{
 		LogMessage("MM::IsSequenceable event.");
-		// pProp->SetSequenceable((long)channels.size());
-		// disable sequencing for this property
-		pProp->SetSequenceable(0);
+		pProp->SetSequenceable((long)channels.size());
 	}
 	else if (eAct == MM::AfterLoadSequence)
 	{
@@ -658,6 +656,14 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 		double val;
 		pProp->Get(val);
 		it->second.exposureMs = val;
+
+		// if we changed exposure on the current channel, update the arduino immediately
+		if (it->second.channelId == currentChannel)
+		{
+			int ret = SetTTLController(it->second, ttlAnswerDelayMs);
+			if (ret != DEVICE_OK)
+				return ret;
+		}
 	}
 	if (eAct == MM::BeforeGet)
 	{
