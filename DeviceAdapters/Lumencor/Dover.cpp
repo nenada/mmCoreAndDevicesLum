@@ -89,14 +89,12 @@ void CDoverStage::GetName(char* pszName) const
 
 int CDoverStage::Initialize()
 {
-	LogMessage(">>>> Starting initialization of the DOverStage");
 	if (!zStage)
 		return ERR_DOVER_INITIALIZE;
 
 	int ret = dover_initialize(zStage);
 	if (ret != DOVER_OK)
 	{
-		LogMessage(">>>> Error initializing DoverStage");
 		return ret;
 	}
 
@@ -108,7 +106,6 @@ int CDoverStage::Initialize()
 
 	UpdateStatus();
 	initialized = true;
-	LogMessage(">>>> Ending initialization of the DOverStage");
 
 	return DEVICE_OK;
 }
