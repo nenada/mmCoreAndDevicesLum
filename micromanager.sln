@@ -34,6 +34,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Lumencor", "DeviceAdapters\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Go2Scope", "DeviceAdapters\go2scope\go2scope.vcxproj", "{2916E620-1157-4154-8223-887D383E9DE6}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Dover", "DeviceAdapters\Dover\Dover.vcxproj", "{1793EC43-27A8-414F-92F3-3F50628CF494}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -138,6 +140,12 @@ Global
 		{2916E620-1157-4154-8223-887D383E9DE6}.Release|x64.ActiveCfg = Release|x64
 		{2916E620-1157-4154-8223-887D383E9DE6}.Release|x64.Build.0 = Release|x64
 		{2916E620-1157-4154-8223-887D383E9DE6}.Release|x86.ActiveCfg = Release|x64
+		{1793EC43-27A8-414F-92F3-3F50628CF494}.Debug|x64.ActiveCfg = Debug|x64
+		{1793EC43-27A8-414F-92F3-3F50628CF494}.Debug|x64.Build.0 = Debug|x64
+		{1793EC43-27A8-414F-92F3-3F50628CF494}.Debug|x86.ActiveCfg = Debug|x64
+		{1793EC43-27A8-414F-92F3-3F50628CF494}.Release|x64.ActiveCfg = Release|x64
+		{1793EC43-27A8-414F-92F3-3F50628CF494}.Release|x64.Build.0 = Release|x64
+		{1793EC43-27A8-414F-92F3-3F50628CF494}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

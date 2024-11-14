@@ -37,8 +37,6 @@ using namespace std;
 MODULE_API void InitializeModuleData()
 {
    RegisterDevice(g_LightEngine, MM::ShutterDevice, "Lumencor Light Engine");
-	RegisterDevice(g_DoverStage, MM::StageDevice, "Dover DOF5 Z Stage");
-	RegisterDevice(g_DoverXYStage, MM::XYStageDevice, "Dover XY Stage");
 	RegisterDevice(g_TTLSwitch, MM::StateDevice, "Light Engine with TTL Switch");
 }
 
@@ -55,15 +53,6 @@ MODULE_API MM::Device* CreateDevice(const char* deviceName)
 	{
 		return new CTTLSwitch();
 	}
-	else if (strcmp(deviceName, g_DoverStage) == 0)
-	{
-		return new CDoverStage();
-	}
-	else if (strcmp(deviceName, g_DoverXYStage) == 0)
-	{
-		return new CDoverXYStage();
-	}
-
 
    return 0;
 }

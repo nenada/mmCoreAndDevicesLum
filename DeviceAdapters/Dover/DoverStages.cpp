@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FILE:          Dover.cpp
+// FILE:          DoverStages.cpp
 // PROJECT:       Micro-Manager
 // SUBSYSTEM:     DeviceAdapters
 //-----------------------------------------------------------------------------
@@ -21,7 +21,7 @@
 //                INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
 
-#include "Lumencor.h"
+#include "Dover.h"
 #include "DoverAPI.h"
 
 static int g_doverInstanceCounter(0);

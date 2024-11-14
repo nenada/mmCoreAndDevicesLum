@@ -100,7 +100,6 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Dover.cpp" />
     <ClCompile Include="Lumencor.cpp" />
     <ClCompile Include="TTLSwitch.cpp" />
   </ItemGroup>
