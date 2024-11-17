@@ -51,7 +51,7 @@ static const char* g_Prop_SerialNumber = "SerialNumber";
 static const char* g_Prop_FirmwareVersion = "FirmwareVersion";
 static const char* g_Prop_ModuleVersion = "ModuleVersion";
 
-#define LUMENCOR_DEV_VERSION "1.0.1"
+#define LUMENCOR_DEV_VERSION "1.0.2"
 
 class LightEngineAPI;
 

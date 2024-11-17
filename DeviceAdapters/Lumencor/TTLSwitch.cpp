@@ -430,10 +430,15 @@ int CTTLSwitch::OnState(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
    if (eAct == MM::BeforeGet)
    {
+		LogMessage(">>>OnState-BeforeGet");
 		pProp->Set((long)currentChannel);
+		ostringstream os;
+		os << ">>>Current channel :" << currentChannel;
+		LogMessage(os.str());
    }
    else if (eAct == MM::AfterSet)
    {
+		LogMessage(">>>OnState-AfterSet");
 		// get channel
 		long channelIndex;
 		pProp->Get(channelIndex);
@@ -449,47 +454,10 @@ int CTTLSwitch::OnState(MM::PropertyBase* pProp, MM::ActionType eAct)
 			return ret;
 
 		currentChannel = channelIndex;
+		ostringstream os;
+		os << ">>>Set current channel :" << currentChannel;
+		LogMessage(os.str());
    }
-	else if (eAct == MM::IsSequenceable)
-	{
-		LogMessage("MM::IsSequenceable event.");
-		pProp->SetSequenceable((long)channels.size());
-	}
-	else if (eAct == MM::AfterLoadSequence)
-	{
-		LogMessage("MM::AfterLoadSequence event.");
-		std::vector<std::string> sequence = pProp->GetSequence();
-		std::ostringstream os;
-		if (sequence.size() > channels.size())
-			return DEVICE_SEQUENCE_TOO_LARGE;
-
-		std::vector<int> chSequence;
-		try
-		{
-			for (auto& s : sequence)
-			{
-				chSequence.push_back(std::stoi(s));
-				if (chSequence.back() >= channels.size())
-					return ERR_TTL_INVALID_SEQUENCE;
-			}
-		}
-		catch (...)
-		{
-			return ERR_TTL_INVALID_SEQUENCE;
-		}
-		int ret = LoadChannelSequence(chSequence);
-		if (ret != DEVICE_OK)
-			return ret;
-	}
-	else if (eAct == MM::StartSequence)
-	{
-		LogMessage("MM::StartSequence event. No action taken.");
-	}
-	else if (eAct == MM::StopSequence)
-	{
-		LogMessage("MM::StopSequence event. No action taken.");
-	}
-
    return DEVICE_OK;
 }
 
@@ -570,6 +538,9 @@ int CTTLSwitch::OnChannelSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
 	return DEVICE_OK;
 }
 
+/**
+ * This handler relies on convention for property naming. It has to start with the channel name.
+ */
 int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	vector<string> tokens;
@@ -597,20 +568,29 @@ int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
 
    if (eAct == MM::AfterSet)
    {
+		LogMessage(">>>OnChannelIntensity-AfterSet");
       long val;
       pProp->Get(val);
 		int ret = lum_setIntensity(engine, channelIdx, val);
       if (ret != LUM_OK)
 			return RetrieveError();
+		ostringstream os;
+		os << ">>>Set intensity :" << val;
+		LogMessage(os.str());
    }
-   if (eAct == MM::BeforeGet)
+   else if (eAct == MM::BeforeGet)
    {
+		LogMessage(">>>OnChannelIntensity-BeforGet");
       int inten;
       int ret = lum_getIntensity(engine, channelIdx, &inten);
       if (ret != DEVICE_OK)
          RetrieveError();
 
       pProp->Set((long)inten);
+		ostringstream os;
+		os << ">>>Current intensity :" << inten;
+		LogMessage(os.str());
+
    }
    return DEVICE_OK;
 }
@@ -650,9 +630,10 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 		LogMessage(os.str());
 		return ERR_INTERNAL;
 	}
-
+	
 	if (eAct == MM::AfterSet)
 	{
+		LogMessage(">>>OnChanneExposure-AfterSet");
 		double val;
 		pProp->Get(val);
 		it->second.exposureMs = val;
@@ -664,10 +645,17 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 			if (ret != DEVICE_OK)
 				return ret;
 		}
+		ostringstream os;
+		os << ">>>Set exposure :" << it->second.exposureMs;
+		LogMessage(os.str());
 	}
-	if (eAct == MM::BeforeGet)
+	else if (eAct == MM::BeforeGet)
 	{
+		LogMessage(">>>OnChanneExposure-BeforGet");
 		pProp->Set(it->second.exposureMs);
+		ostringstream os;
+		os << ">>>Current exposure :" << it->second.exposureMs;
+		LogMessage(os.str());
 	}
 
 	return DEVICE_OK;
