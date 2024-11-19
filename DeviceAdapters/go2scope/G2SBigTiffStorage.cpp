@@ -228,8 +228,14 @@ int G2SBigTiffStorage::Create(const char* path, const char* name, int numberOfDi
 
    // Append dataset storage descriptor to cache
    auto it = cache.insert(std::make_pair(guid, sdesc));
+	if(it.first == cache.end())
+	{
+		delete fhandle;
+		return ERR_TIFF_CACHE_INSERT;
+	}
    if(!it.second)
 	{
+		// Dataset already exists
 		delete fhandle;
       return ERR_TIFF_CACHE_INSERT;
 	}
@@ -281,22 +287,45 @@ int G2SBigTiffStorage::Load(const char* path, char* handle)
 			return DEVICE_INVALID_INPUT_PARAM;
 	}
 
-   // Open a file on disk and store the file handle
-	auto fhandle = new G2STiffFile(std::filesystem::absolute(actpath).u8string());
+	// Check if file is already in cache
+	auto cit = cache.begin();
+	while(cit != cache.end())
+	{
+		if(std::filesystem::u8path(cit->second.Path) == actpath)
+			break;
+		cit++;
+	}
+
+	G2STiffFile* fhandle = nullptr;
+	if(cit == cache.end())
+		// Open a file on disk and store the file handle
+		fhandle = new G2STiffFile(std::filesystem::absolute(actpath).u8string());
+	else if(cit->second.FileHandle == nullptr)
+	{
+		// Open a file on disk and update the cache file handle 
+		fhandle = new G2STiffFile(std::filesystem::absolute(actpath).u8string());
+		cit->second.FileHandle = fhandle;
+	}
+	else
+		// Use existing object descriptor
+		fhandle = (G2STiffFile*)cit->second.FileHandle;
 	if(fhandle == nullptr)
-		return DEVICE_OUT_OF_MEMORY;
+		return ERR_TIFF_OPEN_FAILED;
 
 	try
 	{
-		fhandle->open(false, getDirectIO());
 		if(!fhandle->isOpen())
-			return DEVICE_OUT_OF_MEMORY;
+		{
+			fhandle->open(false, getDirectIO());
+			if(!fhandle->isOpen())
+				return ERR_TIFF_OPEN_FAILED;
+		}
 		fhandle->setFlushCycles((std::uint32_t)getFlushCycle());
 	}
-	catch(std::exception&)
+	catch(std::exception& e)
 	{
 		delete fhandle;
-		return DEVICE_OUT_OF_MEMORY;
+		return ERR_TIFF_OPEN_FAILED;
 	}
 	
 	// Obtain / generate dataset UID
@@ -307,16 +336,19 @@ int G2SBigTiffStorage::Load(const char* path, char* handle)
 		return DEVICE_INVALID_PROPERTY_LIMTS;
 	}
 
-	// Create dataset storage descriptor
-   G2SStorageEntry sdesc(std::filesystem::absolute(actpath).u8string(), (int)fhandle->getDimension(), reinterpret_cast<int*>(&fhandle->getShape()[0]), fhandle->getMetadata().empty() ? nullptr : fhandle->getMetadata().c_str());
-   sdesc.FileHandle = fhandle;
-
    // Append dataset storage descriptor to cache
-   auto it = cache.insert(std::make_pair(guid, sdesc));
-   if(!it.second)
+	if(cit == cache.end())
 	{
-		delete fhandle;
-      return DEVICE_OUT_OF_MEMORY;
+		// Create dataset storage descriptor
+		G2SStorageEntry sdesc(std::filesystem::absolute(actpath).u8string(), (int)fhandle->getDimension(), reinterpret_cast<int*>(&fhandle->getShape()[0]), fhandle->getMetadata().empty() ? nullptr : fhandle->getMetadata().c_str());
+		sdesc.FileHandle = fhandle;
+
+		auto it = cache.insert(std::make_pair(guid, sdesc));
+		if(it.first == cache.end())
+		{
+			delete fhandle;
+			return DEVICE_OUT_OF_MEMORY;
+		}
 	}
 
    // Copy UUID string to the GUID buffer

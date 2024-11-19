@@ -252,8 +252,11 @@ void G2STiffFile::open(bool trunc, bool dio)
 			auto metaoffset = readInt(&header[bigTiff ? 40 : 32], bigTiff ? 8 : 4);
 			seek(metaoffset);
 
-			metadata.resize(fsize - metaoffset);
-			fetch(&metadata[0], metadata.size());
+			if(metaoffset > 0)
+			{
+				metadata.resize(fsize - metaoffset);
+				fetch(&metadata[0], metadata.size());
+			}
 
 			// Locate first IFD
 			currentifdpos = readInt(&header[bigTiff ? 8 : 4], bigTiff ? 8 : 4);
