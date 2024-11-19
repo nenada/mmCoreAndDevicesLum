@@ -59,7 +59,7 @@ G2SBigTiffStorage::G2SBigTiffStorage() : initialized(false)
    //
    // Description
    std::ostringstream os;
-   os << "BigTIFF Storage v1.0";
+	os << "BigTIFF Storage " << G2STIFF_VERSION;
    CreateProperty(MM::g_Keyword_Description, os.str().c_str(), MM::String, true);
 }
 

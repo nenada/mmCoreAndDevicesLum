@@ -28,6 +28,8 @@
 #include <cmath>
 #include <climits>
 
+#define G2STIFF_VERSION					"1.0.1" 
+
 #define DEFAULT_BIGTIFF					true
 #define DEFAULT_DIRECT_IO				false
 #define TIFF_MAX_BUFFER_SIZE			2147483648U

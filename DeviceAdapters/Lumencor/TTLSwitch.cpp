@@ -198,7 +198,9 @@ int CTTLSwitch::Initialize()
 		AddAllowedValue(MM::g_Keyword_Label, channels[i].c_str());
 	}
 
-	// add sequence property
+	// set channel sequence
+	pAct = new CPropertyAction(this, &CTTLSwitch::OnChannelSequence);
+	CreateProperty(g_prop_ChannelSequence, "", MM::String, false, pAct);
 
 
    // reset light engine
@@ -534,6 +536,8 @@ int CTTLSwitch::OnChannelSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
 		int ret = LoadChannelSequence(tokens);
 		if (ret != DEVICE_OK)
 			return ret;
+
+		channelSequenceCmd = chSeqCmd;
 	}
 	return DEVICE_OK;
 }
