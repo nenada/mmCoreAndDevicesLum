@@ -73,7 +73,7 @@ LightEngine::LightEngine() :
 {
    InitializeDefaultErrorMessages();
 
-	   // set device specific error messages
+	// set device specific error messages
    SetErrorText(ERR_INIT, "Light engine initialization error, see log file for details");
    SetErrorText(ERR_INTERNAL, "Internal driver error, see log file for details");
 

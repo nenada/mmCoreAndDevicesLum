@@ -3,11 +3,11 @@
 // PROJECT:       Micro-Manager
 // SUBSYSTEM:     DeviceAdapters
 //-----------------------------------------------------------------------------
-// DESCRIPTION:   Go2Scope devices. Includes the experimental StorageDevice
+// DESCRIPTION:   BIGTIFF storage device driver
 //
 // AUTHOR:        Milos Jovanovic <milos@tehnocad.rs>
 //
-// COPYRIGHT:     Nenad Amodaj, Chan Zuckerberg Initiative, 2024
+// COPYRIGHT:     Luminous Point LLC, Lumencor Inc., 2024
 //
 // LICENSE:       This file is distributed under the BSD license.
 //                License text is included with the source distribution.
@@ -20,9 +20,6 @@
 //                CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //                INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 //
-// NOTE:          Storage Device development is supported in part by
-//                Chan Zuckerberg Initiative (CZI)
-// 
 ///////////////////////////////////////////////////////////////////////////////
 #include <filesystem>
 #include <boost/uuid/uuid.hpp>
@@ -48,6 +45,10 @@ G2SBigTiffStorage::G2SBigTiffStorage() : initialized(false)
    SetErrorText(ERR_INTERNAL, "Internal driver error, see log file for details");
    SetErrorText(ERR_TIFF, "Generic TIFF error. See log for more info.");
 	SetErrorText(ERR_TIFF_STREAM_UNAVAILABLE, "BigTIFF storage error. File stream is not available.");
+	SetErrorText(ERR_TIFF_INVALID_PATH, "Invalid path or name.");
+	SetErrorText(ERR_TIFF_INVALID_DIMENSIONS, "Invalid number of dimensions. Minimum is 3.");
+	SetErrorText(ERR_TIFF_INVALID_PIXEL_TYPE, "Invalid or unsupported pixel type.");
+	SetErrorText(ERR_TIFF_OPEN_FAILED, "Failed opening TIF file.");
 
    // create pre-initialization properties                                   
    // ------------------------------------
@@ -133,15 +134,23 @@ int G2SBigTiffStorage::Shutdown()
  */
 int G2SBigTiffStorage::Create(const char* path, const char* name, int numberOfDimensions, const int shape[], MM::StorageDataType pixType, const char* meta, char* handle)
 {
-   if(path == nullptr || numberOfDimensions <= 0 || pixType == MM::StorageDataType::StorageDataType_UNKNOWN)
-      return DEVICE_INVALID_INPUT_PARAM;
+   if (path == nullptr)
+      return ERR_TIFF_INVALID_PATH;
+
+	if (numberOfDimensions < 3)
+		return ERR_TIFF_INVALID_DIMENSIONS;
+
+	if (!(pixType == MM::StorageDataType::StorageDataType_GRAY16 || 
+		pixType == MM::StorageDataType::StorageDataType_GRAY8 || 
+		pixType == MM::StorageDataType::StorageDataType_RGB32))
+		return ERR_TIFF_INVALID_PIXEL_TYPE;
 
    // Check cache size limits
    if(cache.size() >= MAX_CACHE_SIZE)
    {
       cacheReduce();
       if(CACHE_HARD_LIMIT && cache.size() >= MAX_CACHE_SIZE)
-         return DEVICE_OUT_OF_MEMORY;
+         return ERR_TIFF_CACHE_OVERFLOW;
    }
 
    // Check if the file already exists
@@ -176,20 +185,27 @@ int G2SBigTiffStorage::Create(const char* path, const char* name, int numberOfDi
    
    // Create a file on disk and store the file handle
    auto fhandle = new G2STiffFile(dsName.u8string());
-   if(fhandle == nullptr)
-      return ERR_TIFF_STREAM_UNAVAILABLE;
+	if (fhandle == nullptr)
+	{
+		LogMessage("Error obtaining file handle for: " + dsName.u8string());
+		return ERR_TIFF_STREAM_UNAVAILABLE;
+	}
 	
 	try
 	{
 		fhandle->open(true, getDirectIO());
-		if(!fhandle->isOpen())
-			return DEVICE_OUT_OF_MEMORY;
+		if (!fhandle->isOpen())
+		{
+			LogMessage("Failed to open file: " + dsName.u8string());
+			return ERR_TIFF_OPEN_FAILED;
+		}
 		fhandle->setFlushCycles((std::uint32_t)getFlushCycle());
 	}
-	catch(std::exception&)
+	catch(std::exception& err)
 	{
 		delete fhandle;
-		return DEVICE_OUT_OF_MEMORY;
+		LogMessage(std::string(err.what()) + " for " + dsName.u8string());
+		return ERR_TIFF_OPEN_FAILED;
 	}
    
    G2SStorageEntry sdesc(dsName.u8string(), numberOfDimensions, shape, meta);
@@ -215,7 +231,7 @@ int G2SBigTiffStorage::Create(const char* path, const char* name, int numberOfDi
    if(!it.second)
 	{
 		delete fhandle;
-      return DEVICE_OUT_OF_MEMORY;
+      return ERR_TIFF_CACHE_INSERT;
 	}
 
    // Copy UUID string to the GUID buffer

@@ -3,11 +3,11 @@
 // PROJECT:       Micro-Manager
 // SUBSYSTEM:     DeviceAdapters
 //-----------------------------------------------------------------------------
-// DESCRIPTION:   Go2Scope devices. Includes the experimental StorageDevice
+// DESCRIPTION:   BIGTIFF storage device driver
 //
 // AUTHOR:        Milos Jovanovic <milos@tehnocad.rs>
 //
-// COPYRIGHT:     Nenad Amodaj, Chan Zuckerberg Initiative, 2024
+// COPYRIGHT:     Luminous Point LLC, Lumencor Inc. 2024
 //
 // LICENSE:       This file is distributed under the BSD license.
 //                License text is included with the source distribution.
@@ -19,10 +19,7 @@
 //                IN NO EVENT SHALL THE COPYRIGHT OWNER OR
 //                CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //                INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
-//
-// NOTE:          Storage Device development is supported in part by
-//                Chan Zuckerberg Initiative (CZI)
-// 
+//// 
 ///////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <string>
