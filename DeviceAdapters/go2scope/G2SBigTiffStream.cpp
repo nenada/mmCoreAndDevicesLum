@@ -42,11 +42,11 @@
  * Class constructor
  * Constructor doesn't open the file, just creates an object set sets the configuration
  * @param path File path
- * @param fbig Use BigTIFF format
  * @param dio Use direct I/O
+ * @param fbig Use BigTIFF format
  * @param chunk Chunk index
  */
-G2SBigTiffStream::G2SBigTiffStream(const std::string& path, bool fbig, bool dio, std::uint32_t chunk) noexcept
+G2SBigTiffStream::G2SBigTiffStream(const std::string& path, bool dio, bool fbig, std::uint32_t chunk) noexcept
 {
 	currpos = 0;
 	writepos = 0;
@@ -78,6 +78,7 @@ G2SBigTiffStream::G2SBigTiffStream(const std::string& path, bool fbig, bool dio,
  * If the file exists and 'trunc' is set to true existing file will be discared and new one will be created (write mode)
  * If the file exists and 'trunc' is set to false dataset shape, pixel format and metadata will be parsed (read / append mode)
  * @param trunc Trucate existing file
+ * @param index Index IFDs
  * @throws std::runtime_error
  */
 void G2SBigTiffStream::open(bool trunc)
@@ -273,6 +274,7 @@ void G2SBigTiffStream::close() noexcept
  * The following parameters will be obtained:
  *  - TIFF format (BigTIFF or plain TIFF)
  *  - Chunk index
+ *  - Chunk size
  *  - Image count
  *  - First IFD offset
  *  - Dataset UID
@@ -282,12 +284,12 @@ void G2SBigTiffStream::close() noexcept
  *  - Write cursor position
  * @param datasetuid Dataset UID [out]
  * @param shape Dataset shape [out]
+ * @param chunksize Chunk size [out]
  * @param metadata Metadata buffer [out]
- * @param metaoffset Metadata offset [out]
  * @param bitdepth Image bit depth [out]
  * @throws std::runtime_error
  */
-void G2SBigTiffStream::parse(std::string& datasetuid, std::vector<std::uint32_t> shape, std::vector<unsigned char>& metadata, std::uint64_t& metaoffset, std::uint32_t& bitdepth)
+void G2SBigTiffStream::parse(std::string& datasetuid, std::vector<std::uint32_t> shape, std::uint32_t& chunksize, std::vector<unsigned char>& metadata, std::uint8_t& bitdepth)
 {
 	// Check header size
 	if(header.size() != G2STIFF_HEADER_SIZE)
@@ -346,13 +348,16 @@ void G2SBigTiffStream::parse(std::string& datasetuid, std::vector<std::uint32_t>
 	auto shapedim = (std::uint32_t)readInt(&header[bigTiff ? 52 : 40], 4);
 	shape.clear();
 	for(std::uint32_t i = 0; i < shapedim; i++)
-		shape.push_back((std::uint32_t)readInt(&header[(bigTiff ? 56 : 44) + i * 4], 4));
+		shape.push_back((std::uint32_t)readInt(&header[(std::size_t)(bigTiff ? 56 : 44) + (std::size_t)i * 4], 4));
+
+	// Parse chunk size
+	chunksize = (std::uint32_t)readInt(&header[(std::size_t)(bigTiff ? 56 : 44) + (std::size_t)shapedim * 4], 4);
 
 	// Get file size
 	auto fsize = std::filesystem::file_size(std::filesystem::u8path(fpath));
 
 	// Parse metadata
-	metaoffset = readInt(&header[bigTiff ? 40 : 32], bigTiff ? 8 : 4);
+	auto metaoffset = readInt(&header[bigTiff ? 40 : 32], bigTiff ? 8 : 4);
 	if(metaoffset > 0)
 	{
 		metadata.resize(fsize - metaoffset);
@@ -394,7 +399,7 @@ void G2SBigTiffStream::parse(std::string& datasetuid, std::vector<std::uint32_t>
 				pixformatset = true;
 			}
 
-			auto nextoffset = readInt(&lbuff[ifdsz - (bigTiff ? 8 : 4)], bigTiff ? 8 : 4);
+			auto nextoffset = readInt(&lbuff[(std::size_t)ifdsz - (std::size_t)(bigTiff ? 8 : 4)], bigTiff ? 8 : 4);
 			if(nextoffset >= fsize)
 				throw std::runtime_error("File '" + fpath + "' open failed. IFD " + std::to_string(i) + " link is corrupted");
 			if(nextoffset == 0)
@@ -459,8 +464,9 @@ void G2SBigTiffStream::formHeader() noexcept
 /**
  * Write shape info to the header cache
  * @param shape Dataset shape
+ * @param chunksz Chunk size
  */
-void G2SBigTiffStream::writeShapeInfo(const std::vector<std::uint32_t>& shape) noexcept
+void G2SBigTiffStream::writeShapeInfo(const std::vector<std::uint32_t>& shape, std::uint32_t chunksz) noexcept
 {
 	if(header.size() < G2STIFF_HEADER_SIZE || shape.empty())
 		return;
@@ -469,6 +475,7 @@ void G2SBigTiffStream::writeShapeInfo(const std::vector<std::uint32_t>& shape) n
 	writeInt(&header[startind], 4, shape.size());
 	for(std::size_t i = 0; i < shape.size(); i++)
 		writeInt(&header[startind + (i + 1) * 4], 4, shape[i]);
+	writeInt(&header[startind + (shape.size() + 1) * 4], 4, chunksz);
 }
 
 /**

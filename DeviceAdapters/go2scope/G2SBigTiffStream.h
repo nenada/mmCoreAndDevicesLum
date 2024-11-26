@@ -40,7 +40,7 @@ public:
 	//============================================================================================================================
 	// Constructors & Destructors
 	//============================================================================================================================
-	G2SBigTiffStream(const std::string& path, bool fbig, bool dio, std::uint32_t chunk = 0) noexcept;
+	G2SBigTiffStream(const std::string& path, bool dio, bool fbig = DEFAULT_BIGTIFF, std::uint32_t chunk = 0) noexcept;
 	G2SBigTiffStream(const G2SBigTiffStream& src) noexcept = default;
 	~G2SBigTiffStream() noexcept { close(); }
 
@@ -50,9 +50,9 @@ public:
 	//============================================================================================================================
 	void															open(bool trunc);
 	void															close() noexcept;
-	void															parse(std::string& datasetuid, std::vector<std::uint32_t> shape, std::vector<unsigned char>& metadata, std::uint64_t& metaoffset, std::uint32_t& bitdepth);
+	void															parse(std::string& datasetuid, std::vector<std::uint32_t> shape, std::uint32_t& chunksize, std::vector<unsigned char>& metadata, std::uint8_t& bitdepth);
 	void															formHeader() noexcept;
-	void															writeShapeInfo(const std::vector<std::uint32_t>& shape) noexcept;
+	void															writeShapeInfo(const std::vector<std::uint32_t>& shape, std::uint32_t chunksz) noexcept;
 	void															setChunkIndex(std::uint32_t val) noexcept;
 	void															appendMetadata(const std::vector<unsigned char>& meta);
 	std::size_t													commit(const unsigned char* buff, std::size_t len);
@@ -116,3 +116,4 @@ private:
 	bool															bigTiff;											///< Use big TIFF format
 };
 
+typedef std::shared_ptr<G2SBigTiffStream> G2SFileStreamHandle;
