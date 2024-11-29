@@ -46,15 +46,32 @@ public:
 
 public:
 	//============================================================================================================================
-	// Public interface
+	// Public interface - Common methods
 	//============================================================================================================================
 	void															open(bool trunc);
 	void															close() noexcept;
 	void															parse(std::string& datasetuid, std::vector<std::uint32_t> shape, std::uint32_t& chunksize, std::vector<unsigned char>& metadata, std::uint8_t& bitdepth);
 	void															formHeader() noexcept;
 	void															writeShapeInfo(const std::vector<std::uint32_t>& shape, std::uint32_t chunksz) noexcept;
+	void															writeDatasetUid(const std::string& datasetuid) noexcept;
 	void															setChunkIndex(std::uint32_t val) noexcept;
+	std::uint32_t												getChunkIndex() const noexcept { return chunkindex; }
 	void															appendMetadata(const std::vector<unsigned char>& meta);
+	const std::vector<unsigned char>&					getHeader() const noexcept { return header; }
+	std::vector<unsigned char>&							getHeader() noexcept { return header; }
+	std::string													getFilePath() const noexcept { return fpath; }
+	std::uint64_t												getFileSize() const noexcept;
+	bool															isBigTiff() const noexcept { return bigTiff; }
+#ifdef _WIN32
+	bool															isOpen() const noexcept { return fhandle != nullptr; }
+#else
+	bool															isOpen() const noexcept { return fhandle > 0; }
+#endif
+
+public:
+	//============================================================================================================================
+	// Public interface - File stream manipulation
+	//============================================================================================================================
 	std::size_t													commit(const unsigned char* buff, std::size_t len);
 	std::size_t													write(const unsigned char* buff, std::size_t len);
 	std::size_t													fetch(unsigned char* buff, std::size_t len);
@@ -62,7 +79,11 @@ public:
 	std::uint64_t												seek(std::int64_t pos, bool beg = true);
 	std::uint64_t												offset(std::int64_t off);
 	void															flush() const;
-	std::uint64_t												getFileSize() const noexcept;
+
+public:
+	//============================================================================================================================
+	// Public interface - Helper methods
+	//============================================================================================================================
 	void															appendIFD(std::uint32_t imgw, std::uint32_t imgh, std::uint32_t imgdepth, std::size_t imagelen, const std::string& meta);
 	std::size_t													setIFDTag(unsigned char* ifd, std::uint16_t tag, std::uint16_t dtype, std::uint64_t val, std::uint64_t cnt = 1) const noexcept;
 	std::uint32_t												getTagCount(const std::string& meta) const noexcept { return meta.empty() ? G2STIFF_TAG_COUNT_NOMETA : G2STIFF_TAG_COUNT; }
@@ -72,11 +93,6 @@ public:
 	void															calcDescSize(std::size_t metalen, std::uint32_t tags, std::uint32_t* ifd, std::uint32_t* desc, std::uint32_t* tot) noexcept;
 	void															moveReadCursor(std::uint64_t pos) noexcept;
 	void															moveWriteCursor(std::uint64_t pos) noexcept;
-#ifdef _WIN32
-	bool															isOpen() const noexcept { return fhandle != nullptr; }
-#else
-	bool															isOpen() const noexcept { return fhandle > 0; }
-#endif
 
 private:
 	//============================================================================================================================

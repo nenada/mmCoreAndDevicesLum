@@ -38,7 +38,7 @@
  */
 G2SBigTiffStorage::G2SBigTiffStorage() : initialized(false)
 {
-   supportedFormats = { "tif", "tiff", "tf8" };
+   supportedFormats = { "g2s" };
 
    InitializeDefaultErrorMessages();
 
@@ -205,7 +205,7 @@ int G2SBigTiffStorage::Create(const char* path, const char* name, int numberOfDi
 		return ERR_TIFF_OPEN_FAILED;
 	}
    
-   G2SStorageEntry sdesc(dsName.u8string(), numberOfDimensions, shape, meta);
+   G2SStorageEntry sdesc(fhandle->getPath(), numberOfDimensions, shape, meta);
    sdesc.FileHandle = fhandle;
 
 	// Set dataset UUID / shape / metadata
@@ -261,7 +261,7 @@ int G2SBigTiffStorage::Load(const char* path, char* handle)
 	std::filesystem::path actpath = std::filesystem::u8path(path);
    if(!std::filesystem::exists(actpath))
 	{
-		// Try finding the file by adding the file suffix (index)
+		// Try finding the folder by adding the index (number suffix)
 		bool fnd = false;
 		auto dir = actpath.parent_path();
 		auto fname = actpath.stem().u8string();
@@ -277,6 +277,11 @@ int G2SBigTiffStorage::Load(const char* path, char* handle)
 		}
 		if(!fnd)
 			return DEVICE_INVALID_INPUT_PARAM;
+	}
+	else if(std::filesystem::is_regular_file(actpath))
+	{
+		// File path of the first data chunk is specified -> use parent folder path
+		actpath = actpath.parent_path();
 	}
 
 	// Check if file is already in cache
@@ -799,23 +804,23 @@ bool G2SBigTiffStorage::scanDir(const std::string& path, char** listOfDatasets, 
          auto fname = entry.path().filename().u8string();
          if(fname == "." || fname == "..")
             continue;
-         auto abspath = std::filesystem::absolute(entry).u8string();
 
-         // Scan subfolder
-         if(std::filesystem::is_directory(entry))
-            return scanDir(abspath, listOfDatasets, maxItems, maxItemLength, cpos);
+         // Skip regular files
+         if(!std::filesystem::is_directory(entry))
+            continue;
          
-         // Skip unsupported file formats
+         // If the folder extension is invalid -> scan the subtree
+			auto abspath = std::filesystem::absolute(entry).u8string();
          auto fext = entry.path().extension().u8string();
          if(fext.size() == 0)
-            continue;
+            return scanDir(abspath, listOfDatasets, maxItems, maxItemLength, cpos);
          if(fext[0] == '.')
             fext = fext.substr(1);
          std::transform(fext.begin(), fext.end(), fext.begin(), [](char c) { return (char)tolower(c); });
          if(std::find(supportedFormats.begin(), supportedFormats.end(), fext) == supportedFormats.end())
-            continue;
+				return scanDir(abspath, listOfDatasets, maxItems, maxItemLength, cpos);
 
-         // We found a supported file type
+         // We found a supported dataset folder
          // Check result buffer limit
          if(cpos >= maxItems)
             return false;

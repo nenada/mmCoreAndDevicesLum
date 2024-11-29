@@ -479,6 +479,31 @@ void G2SBigTiffStream::writeShapeInfo(const std::vector<std::uint32_t>& shape, s
 }
 
 /**
+ * Write dataset UID to the header cache
+ * @param datasetuid Dataset UID
+ */
+void G2SBigTiffStream::writeDatasetUid(const std::string& datasetuid) noexcept
+{
+	if(header.size() < G2STIFF_HEADER_SIZE)
+		return;
+
+	// Write UID to the header cache
+	auto startind = bigTiff ? 24 : 16;
+	auto cind = 0;
+	for(int i = 0; i < 16; i++)
+	{
+		if(i == 4 || i == 6 || i == 8 || i == 10)
+			cind++;
+		char cv1 = datasetuid[cind++];
+		char cv2 = datasetuid[cind++];
+		std::uint8_t vx1 = cv1 >= 48 && cv1 <= 57 ? cv1 - 48 : (cv1 >= 65 && cv1 <= 70 ? cv1 - 55 : cv1 - 87);
+		std::uint8_t vx2 = cv2 >= 48 && cv2 <= 57 ? cv2 - 48 : (cv2 >= 65 && cv2 <= 70 ? cv2 - 55 : cv2 - 87);
+		auto xval = (std::uint8_t)(((vx1 & 0x0f) << 4) | (vx2 & 0x0f));
+		header[startind + i] = xval;
+	}
+}
+
+/**
  * Set chunk index
  * @param val Chunk index (zero based)
  */

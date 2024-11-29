@@ -73,8 +73,8 @@ public:
 	int															getBitDepth() const noexcept { return (int)bitdepth; }
 	int															getBpp() const noexcept { return (int)std::ceil(bitdepth / 8.0); }
 	int															getSamples() const noexcept { return (int)samples; }
-	void															setMetadata(const std::string& meta) noexcept;
-	std::string													getMetadata();
+	void															setMetadata(const std::string& meta);
+	std::string													getMetadata() const noexcept;
 	void															setUID(const std::string& val);
 	std::string													getUID() const noexcept { return datasetuid; }
 	std::string													getImageMetadata(const std::vector<std::uint32_t>& coord = {});
@@ -84,6 +84,8 @@ public:
 	std::uint32_t												getDatasetImageCount() const noexcept { std::uint32_t ret = 1; for(std::size_t i = 0; i < shape.size() - 2; i++) ret *= shape[i]; return ret; }
 	std::uint32_t												getImageCount() const noexcept { return imgcounter; }
 	std::uint64_t												getMaxFileSize() const noexcept { return bigTiff ? std::numeric_limits<std::uint64_t>::max() : std::numeric_limits<std::uint32_t>::max(); }
+	std::string													getPath() const noexcept { return dspath; }
+	std::string													getName() const noexcept { return dsname; }
 	bool															isDirectIO() const noexcept { return directIo; }
 	bool															isBigTIFF() const noexcept { return bigTiff; }
 	bool															isInWriteMode() const noexcept { return writemode; }

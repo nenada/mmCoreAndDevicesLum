@@ -62,10 +62,10 @@ G2SBigTiffDataset::G2SBigTiffDataset() noexcept
 
 /**
  * Create a dataset
- * If the file doesn't exist it will be created
- * If the file exists it will be discared and new one will be created
+ * All datasets are stored in separate folders, folder names have a .g2s suffix
+ * If the folder with the specified name already exists, a name with the index in the suffix will be used
  * If the dataset is chunked files will be created only when the active chunk is filled
- * @param path Dataset (folder) path / File path of the first (only) data chunk
+ * @param path Dataset (folder) path
  * @param dio Use direct I/O
  * @param fbig Use BigTIFF format
  * @param chunksz Chunk size
@@ -75,46 +75,45 @@ void G2SBigTiffDataset::create(const std::string& path, bool dio, bool fbig, std
 {
 	if(isOpen())
 		throw std::runtime_error("Invalid operation. Dataset is already created");
-	if(dspath.empty())
+	if(path.empty())
 		throw std::runtime_error("Unable to create a file stream. Dataset path is undefined");
 	directIo = dio;
 	writemode = true;
+	chunksize = chunksz;
 
-	// Check dataset 
-	int counter = 1;
-	std::string ext(chunksize > 0 ? ".g2s.tif" : ".tif");
-	std::filesystem::path basepath = std::filesystem::u8path(dspath);
-	std::filesystem::path xpath = basepath;
+	// Extract dataset name
+	std::filesystem::path basepath = std::filesystem::u8path(path);
+	dsname = basepath.stem().u8string();
+	if(dsname.find(".g2s") == dsname.size() - 4)
+		dsname = dsname.substr(0, dsname.size() - 4);
+
+	// Determine dataset path
+	std::uint32_t counter = 1;
+	std::string dext = ".g2s";
+	std::string fext = ".g2s.tif";
+	std::filesystem::path xpath = basepath.parent_path() / (dsname + dext);
 	while(std::filesystem::exists(xpath))
 	{
 		// If the file path (path + name) exists, it should not be an error
 		// nor the file should be overwritten, first available suffix (index) will be appended to the file name
-		auto savePrefixTmp = savePrefix + "_" + std::to_string(counter++) + ext;
-		dsName = saveRoot / savePrefixTmp;
-	}	
-
-
-	// Determine dataset name
-	// Discard file extensions
-	dsname = std::filesystem::u8path(dspath).filename().u8string();
-	if(dsname.find(".tiff") == dsname.size() - 5)
-		dsname = dsname.substr(0, dsname.size() - 5);
-	else if(dsname.find(".tif") == dsname.size() - 4 || dsname.find(".tf8") == dsname.size() - 4)
-		dsname = dsname.substr(0, dsname.size() - 4);
-	if(dsname.find(".g2s") == dsname.size() - 4)
-		dsname = dsname.substr(0, dsname.size() - 4);
-
-	// Discard file index
-	auto ix = dsname.find_last_of("_");
-	if(ix != std::string::npos)
-	{
-		auto token = dsname.substr(ix + 1);
-		bool isnum = !token.empty() && std::find_if(token.begin(), token.end(), [](unsigned char c) { return !std::isdigit(c); }) == token.end();
-		if(isnum)
-			dsname = dsname.substr(0, ix);
+		auto tmpname = dsname + "_" + std::to_string(counter++) + dext;
+		xpath = basepath.parent_path() / tmpname;
 	}
+	dspath = xpath.u8string();
+
+
+	// Create a first file (data chunk)
+	std::filesystem::path fp = xpath / (dsname + fext);
 	activechunk = std::make_shared<G2SBigTiffStream>(fp.u8string(), directIo);
+	if(!activechunk)
+		throw std::runtime_error("Unable to create a file stream. Data chunk allocation failed");
 	activechunk->open(true);
+	if(activechunk->getHeader().empty())
+		throw std::runtime_error("Unable to create a file stream. File header creation failed");
+	if(!datasetuid.empty())
+	activechunk->writeDatasetUid(datasetuid);
+	if(!shape.empty())
+		activechunk->writeShapeInfo(shape, chunksize);
 	datachunks.push_back(activechunk);
 }
 
@@ -123,56 +122,98 @@ void G2SBigTiffDataset::create(const std::string& path, bool dio, bool fbig, std
  * If the dataset doesn't exist an exception will be thrown
  * If the dataset exists dataset parameters and metadata will be parsed
  * If the dataset is chunked all files will be enumerated, but only the first file will be loaded
+ * @param path Dataset (folder) path or File path of the first data chunk
  * @param dio Use direct I/O
- * @param fbig Use BigTIFF format
- * @param chunksz Chunk size
  * @throws std::runtime_error
  */
 void G2SBigTiffDataset::load(const std::string& path, bool dio)
 {
 	if(isOpen())
 		throw std::runtime_error("Invalid operation. Dataset is already loaded");
-	if(dspath.empty())
+	if(path.empty())
 		throw std::runtime_error("Unable to load a dataset. Dataset path is undefined");
 	directIo = dio;
 	writemode = false;
 
 	// Check dataset / file path
-	auto fp = std::filesystem::u8path(dspath);
-	if(!std::filesystem::exists(fp))
+	auto xp = std::filesystem::u8path(path);
+	if(!std::filesystem::exists(xp))
 	{
-		// Check if the file path has a valid extension
+		// Check if the dataset path has a .g2s extension
 		std::string fpath(path);
-		if(fpath.find(".tiff") != fpath.size() - 5 && fpath.find(".tif") != fpath.size() - 4 && fpath.find(".tf8") != fpath.size() - 4)
-			fpath += ".tif";
-		throw std::runtime_error("Unable to load a dataset. File doesn't exist");
+		if(fpath.find(".g2s") != fpath.size() - 4)
+			fpath += ".g2s";
+		xp = std::filesystem::u8path(path);
+		if(!std::filesystem::exists(xp))
+			throw std::runtime_error("Unable to load a dataset. Specified path doesn't exist");
 	}
-	else if(std::filesystem::is_directory(fp))
+
+	// If the first data chunk (file) path is specified -> use parent folder path
+	if(std::filesystem::is_regular_file(xp))
+		xp = xp.parent_path();
+	dspath = xp.u8string();
+	dsname = xp.stem().u8string();
+	if(dsname.find(".g2s") == dsname.size() - 4)
+		dsname = dsname.substr(0, dsname.size() - 4);
+
+	// Enumerate files
+	for(const auto& entry : std::filesystem::directory_iterator(xp))
 	{
-		// Dataset folder is specified, enumerate files
+		// Skip auto folder paths
+		auto fname = entry.path().filename().u8string();
+		if(fname == "." || fname == "..")
+			continue;
+
+		// Skip folders
+		if(std::filesystem::is_directory(entry))
+			continue;
+
+		// Skip unsupported file formats
+		auto fext = entry.path().extension().u8string();
+		if(fext.size() == 0)
+			continue;
+		if(fext[0] == '.')
+			fext = fext.substr(1);
+		std::transform(fext.begin(), fext.end(), fext.begin(), [](char c) { return (char)tolower(c); });
+		if(fext != "tiff" && fext != "tif" && fext != "g2s.tiff" && fext != "g2s.tif")
+			continue;
+
+		// We found a supported file type -> Add to results list
+		auto abspath = std::filesystem::absolute(entry).u8string();
+		auto dchunk = std::make_shared<G2SBigTiffStream>(abspath, directIo);
+		datachunks.push_back(dchunk);
 	}
-	else
+	if(datachunks.empty())
+		throw std::runtime_error("Unable to load a dataset. No files found");
+
+	// Load first data chunk
+	samples = 1;
+	imgcounter = 0;
+	metadata.clear();
+	activechunk = datachunks.front();
+	activechunk->open(false);
+	activechunk->parse(datasetuid, shape, chunksize, metadata, bitdepth);
+
+	// Validate dataset parameters
+	if(activechunk->getChunkIndex() != 0)
 	{
-		// File path is specified, load first data chunk
-		activechunk = std::make_shared<G2SBigTiffStream>(fp.u8string(), directIo);
-		activechunk->open(false);
-
-		samples = 1;
-		imgcounter = 0;
-		metadata.clear();
-		activechunk->parse(datasetuid, shape, chunksize, metadata, bitdepth);
-		datachunks.push_back(activechunk);
-
-		// Correct dataset (folder) path
-		std
-		if(dspath.find(".tiff") == dspath.size() - 5)
-			dspath = dspath.substr(0, dspath.size() - 5);
-		else if(dspath.find(".tif") == dspath.size() - 4 || dspath.find(".tf8") == dspath.size() - 4)
-			dspath = dspath.substr(0, dspath.size() - 4);
-		if(dspath.find(".g2s") == dspath.size() - 4)
-			dspath = dspath.substr(0, dspath.size() - 4);
-
-		// Check for other files in the same directory
+		close();
+		throw std::runtime_error("Unable to load a dataset. First data chunk is missing");
+	}
+	if(datasetuid.empty())
+	{
+		close();
+		throw std::runtime_error("Unable to load a dataset. Invalid dataset UID");
+	}
+	if(shape.size() < 3)
+	{
+		close();
+		throw std::runtime_error("Unable to load a dataset. Invalid dataset shape");
+	}
+	if(bitdepth < 8 || bitdepth > 16)
+	{
+		close();
+		throw std::runtime_error("Unable to load a dataset. Unsupported pixel format");
 	}
 }
 
@@ -199,8 +240,8 @@ void G2SBigTiffDataset::close() noexcept
 /**
  * Set dataset shape / dimension & axis sizes
  * First two axis are always width and height
- * If the shape info is invalid, or the dataset configuration has already been set
- * this method will take no effect
+ * If the shape info is invalid this method will take no effect
+ * Shape can only be set in the write mode, before adding any images
  * @param dims Axis sizes list
  * @throws std::runtime_error
  */
@@ -210,33 +251,26 @@ void G2SBigTiffDataset::setShape(const std::vector<std::uint32_t>& dims)
 		throw std::runtime_error("Unable to set dataset shape. Invalid shape info");
 	if(!writemode)
 		throw std::runtime_error("Unable to set dataset shape in read mode");
+	if(datachunks.size() > 1)
+		throw std::runtime_error("Unable to set dataset shape. Dataset configuration is already set");
 	if(imgcounter > 0 && shape.size() >= 2)
 	{
 		if(dims.size() != shape.size())
 			throw std::runtime_error("Unable to set dataset shape. Invalid axis count");
 		if(dims[dims.size() - 2] != shape[shape.size() - 2] || dims[dims.size() - 1] != shape[shape.size() - 1])
 			throw std::runtime_error("Unable to set dataset shape. Image dimensions don't match the existing image dimensions");
+		return;
 	}
 	shape = dims;
-	
-	// Write Shape info to the header cache
-	for(const auto& fs : datachunks)
-	{
-		bool isopen = fs->isOpen();
-		if(!isopen)
-			fs->open(false);
-		fs->writeShapeInfo(shape, chunksize);
-		// TODO: Commit header only
-		if(!isopen)
-			fs->close();
-	}
+	if(activechunk)
+		activechunk->writeShapeInfo(shape, chunksize);
 }
 
 /**
  * Set dataset shape / dimension & axis sizes
  * First two axis are always width and height
- * If the shape info is invalid, or the dataset configuration has already been set
- * this method will take no effect
+ * If the shape info is invalid this method will take no effect
+ * Shape can only be set in the write mode, before adding any images
  * @param dims Axis sizes list
  * @throws std::runtime_error
  */
@@ -246,23 +280,25 @@ void G2SBigTiffDataset::setShape(std::initializer_list<std::uint32_t> dims)
 		throw std::runtime_error("Unable to set dataset shape. Invalid shape info");
 	if(!writemode)
 		throw std::runtime_error("Unable to set dataset shape in read mode");
+	if(datachunks.size() > 1)
+		throw std::runtime_error("Unable to set dataset shape. Dataset configuration is already set");
 	if(imgcounter > 0 && shape.size() >= 2)
 	{
 		if(dims.size() != shape.size())
 			throw std::runtime_error("Unable to set dataset shape. Invalid axis count");
 		if(*(dims.end() - 2) != shape[shape.size() - 2] || *(dims.end() - 1) != shape[shape.size() - 1])
 			throw std::runtime_error("Unable to set dataset shape. Image dimensions don't match the existing image dimensions");
+		return;
 	}
 	shape = dims;
-
-	// Write Shape info to the header cache
-	writeShapeInfo();
+	if(activechunk)
+		activechunk->writeShapeInfo(shape, chunksize);
 }
 
 /**
  * Set pixel format
- * If the shape info is invalid, or the dataset configuration has already been set
- * this method will take no effect
+ * If the pixel format is invalid this method will take no effect
+ * Pixel format can only be set in the write mode, before adding any images
  * @param depth Bit depth (bits per sample)
  * @parma vsamples Samples per pixel
  * @throws std::runtime_error
@@ -271,10 +307,13 @@ void G2SBigTiffDataset::setPixelFormat(std::uint8_t depth, std::uint8_t vsamples
 {
 	if(!writemode)
 		throw std::runtime_error("Unable to set pixel format in read mode");
+	if(datachunks.size() > 1)
+		throw std::runtime_error("Unable to set pixel format. Dataset configuration is already set");
 	if(imgcounter > 0)
 	{
 		if(bitdepth != depth || samples != vsamples)
 			throw std::runtime_error("Unable to set pixel format. Specified pixel format doesn't match current pixel format");
+		return;
 	}
 	bitdepth = depth;
 	samples = vsamples;
@@ -285,8 +324,11 @@ void G2SBigTiffDataset::setPixelFormat(std::uint8_t depth, std::uint8_t vsamples
  * Metadata will be stored in byte buffer whose size is 1 byte larger than the metadata string length
  * @param meta Metadata string
  */
-void G2SBigTiffDataset::setMetadata(const std::string& meta) noexcept
+void G2SBigTiffDataset::setMetadata(const std::string& meta)
 {
+	if(!writemode)
+		throw std::runtime_error("Unable to set pixel format in read mode");
+	
 	metadata.clear();
 	if(meta.empty())
 		return;
@@ -303,50 +345,41 @@ void G2SBigTiffDataset::setMetadata(const std::string& meta) noexcept
  */
 void G2SBigTiffDataset::setUID(const std::string& val)
 {
+	if(!writemode)
+		throw std::runtime_error("Unable to set dataset UID in read mode");
+	if(datachunks.size() > 1)
+		throw std::runtime_error("Unable to set dataset UID. Dataset configuration is already set");
+	
 	if(val.empty())
-	{
 		datasetuid = val;
-		return;
-	}
-	if(val.size() != 32 && val.size() != 36)
-		throw std::runtime_error("Unable to set the dataset UID. Invalid UID format");
-	auto hasdashes = val.size() == 36;
-	if(hasdashes && (val[8] != '-' || val[13] != '-' || val[18] != '-' || val[23] != '-'))
-		throw std::runtime_error("Unable to set the dataset UID. Invalid UID format");
-	for(std::size_t i = 0; i < val.size(); i++)
+	else
 	{
-		if(hasdashes && (i == 8 || i == 13 || i == 18 || i == 23))
-			continue;
-		if(val[i] < 48 || val[i] > 102 || (val[i] > 57 && val[i] < 65) || (val[i] > 70 && val[i] < 97))
+		if(val.size() != 32 && val.size() != 36)
 			throw std::runtime_error("Unable to set the dataset UID. Invalid UID format");
-	}
-	datasetuid = hasdashes ? val : val.substr(0, 8) + "-" + val.substr(8, 4) + "-" + val.substr(12, 4) + "-" + val.substr(16, 4) + "-" + val.substr(20);
-	if(!header.empty())
-	{
-		// Write UID to the header cache
-		auto startind = bigTiff ? 24 : 16;
-		auto cind = 0;
-		for(int i = 0; i < 16; i++)
+		auto hasdashes = val.size() == 36;
+		if(hasdashes && (val[8] != '-' || val[13] != '-' || val[18] != '-' || val[23] != '-'))
+			throw std::runtime_error("Unable to set the dataset UID. Invalid UID format");
+		for(std::size_t i = 0; i < val.size(); i++)
 		{
-			if(i == 4 || i == 6 || i == 8 || i == 10)
-				cind++;
-			char cv1 = datasetuid[cind++];
-			char cv2 = datasetuid[cind++];
-			std::uint8_t vx1 = cv1 >= 48 && cv1 <= 57 ? cv1 - 48 : (cv1 >= 65 && cv1 <= 70 ? cv1 - 55 : cv1 - 87);
-			std::uint8_t vx2 = cv2 >= 48 && cv2 <= 57 ? cv2 - 48 : (cv2 >= 65 && cv2 <= 70 ? cv2 - 55 : cv2 - 87);
-			auto xval = (std::uint8_t)(((vx1 & 0x0f) << 4) | (vx2 & 0x0f));
-			header[startind + i] = xval;
+			if(hasdashes && (i == 8 || i == 13 || i == 18 || i == 23))
+				continue;
+			if(val[i] < 48 || val[i] > 102 || (val[i] > 57 && val[i] < 65) || (val[i] > 70 && val[i] < 97))
+				throw std::runtime_error("Unable to set the dataset UID. Invalid UID format");
 		}
+		datasetuid = hasdashes ? val : val.substr(0, 8) + "-" + val.substr(8, 4) + "-" + val.substr(12, 4) + "-" + val.substr(16, 4) + "-" + val.substr(20);
 	}
+
+	// Update file header
+	if(activechunk)
+		activechunk->writeDatasetUid(datasetuid);
 }
 
 /**
  * Get dataset metadata
  * If metadata is specified value will be returned from cache, otherwise it will be read from a file stream
  * @return Metadata string
- * @throws std::runtime_error
  */
-std::string G2SBigTiffDataset::getMetadata()
+std::string G2SBigTiffDataset::getMetadata() const noexcept
 {
 	// Check metadata cache
 	if(metadata.empty())
@@ -413,6 +446,7 @@ std::string G2SBigTiffDataset::getImageMetadata(const std::vector<std::uint32_t>
  * Image data is stored uncompressed
  * Metadata is stored in plain text, after the pixel data
  * Image IFD is stored before pixel data
+ * If the new image doesn't belong to the current chunk, a new file will be created automatically, and the current one will be closed
  * @param buff Image buffer
  * @param meta Image metadata (optional)
  * @throws std::runtime_error
