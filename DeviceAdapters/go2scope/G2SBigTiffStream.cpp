@@ -462,6 +462,131 @@ void G2SBigTiffStream::formHeader() noexcept
 }
 
 /**
+ * Add image / write image to the file
+ * Images are added sequentially
+ * Image data is stored uncompressed
+ * Metadata is stored in plain text, after the pixel data
+ * Image IFD is stored before pixel data
+ * @param buff Image buffer
+ * @param len Image buffer length
+ * @param imgw Image width
+ * @param imgh Image height
+ * @param imgdepth Image bit depth
+ * @param meta Image metadata (optional)
+ * @throws std::runtime_error
+ */
+void G2SBigTiffStream::addImage(const unsigned char* buff, std::size_t len, std::uint32_t imgw, std::uint32_t imgh, std::uint32_t imgdepth, const std::string& meta)
+{
+	// Check file size limits
+	std::uint32_t tot = 0;
+	calcDescSize(meta.empty() ? 0 : meta.size() + 1, getTagCount(meta), nullptr, nullptr, &tot);
+	if(meta.size() + len + currpos + tot > getMaxFileSize())
+		throw std::runtime_error("Invalid operation. File size limit exceeded");
+
+	// Commit header if empty file
+	if(writepos == 0)
+	{
+		commit(&header[0], header.size());
+		lastifdpos = readInt(&header[bigTiff ? 8 : 4], bigTiff ? 8 : 4);
+	}
+	// Update last IFD for images in read mode
+	else if(lastifd.empty() && lastifdpos > 0)
+	{
+		// Move read cursor to the last IFD
+		auto lreadpos = readpos;
+		auto lwritepos = writepos;
+		seek(lastifdpos);
+		moveReadCursor(currpos);
+
+		// Load last IFD and change the next IFD offset
+		auto nextoff = parseIFD(lastifd, lastifdsize);
+		if(nextoff == 0)
+			writeInt(&lastifd[(std::size_t)lastifdsize - (std::size_t)(bigTiff ? 8 : 4)], bigTiff ? 8 : 4, writepos);
+
+		// Update last IFD
+		seek(lastifdpos);
+		commit(&lastifd[0], lastifd.size());
+
+		// Reset cursors
+		moveReadCursor(lreadpos);
+		moveWriteCursor(lwritepos);
+	}
+
+	// Reposition file cursor if last operation was a file read
+	if(writepos != currpos)
+		seek(writepos);
+
+	// Compose next IFD and write image metadata
+	appendIFD(imgw, imgh, imgdepth, len, meta);
+
+	// Write pixel data
+	commit(buff, len);
+
+	// Add padding bytes
+	auto alignsz = directIo ? ssize : 2;
+	if(len % alignsz != 0)
+	{
+		auto padsize = len - (len / alignsz) * alignsz;
+		std::vector<unsigned char> pbuff(padsize);
+		commit(&pbuff[0], pbuff.size());
+	}
+
+	// Flush pending data
+	ifdcache.push_back(lastifdpos);
+	imgcounter++;
+}
+
+/**
+ * Get image data (pixel buffer) (for the current IFD)
+ * @return Image data
+ * @throws std::runtime_error
+ */
+std::vector<unsigned char> G2SBigTiffStream::getImage()
+{
+	// Obtain pixel data strip locations
+	auto offind = (bigTiff ? 8 : 2) + 5 * (bigTiff ? 20 : 12);
+	auto lenind = (bigTiff ? 8 : 2) + 7 * (bigTiff ? 20 : 12);
+	auto dataoffset = readInt(&currentifd[(std::size_t)offind + (std::size_t)(bigTiff ? 12 : 8)], bigTiff ? 8 : 4);
+	auto datalen = readInt(&currentifd[(std::size_t)lenind + (std::size_t)(bigTiff ? 12 : 8)], bigTiff ? 8 : 4);
+	if(dataoffset == 0 || datalen == 0)
+		return {};
+
+	std::vector<unsigned char> ret(datalen);
+	moveReadCursor(seek(dataoffset));
+	fetch(&ret[0], ret.size());
+	return ret;
+}
+
+/**
+ * Get image metadata (for the current IFD)
+ * If no metadata is defined this method will return an empty string
+ * @return Image metadata
+ * @throws std::runtime_error
+ */
+std::string G2SBigTiffStream::getImageMetadata() const
+{
+	// Check IFD tag count
+	auto tagcount = readInt(&currentifd[0], bigTiff ? 8 : 2);
+	if(tagcount == G2STIFF_TAG_COUNT_NOMETA)
+		return "";
+
+	// Obtain metadata OFFSET and length
+	std::size_t metatagind = (std::size_t)(bigTiff ? 8 : 2) + (std::size_t)G2STIFF_TAG_COUNT_NOMETA * (bigTiff ? 20 : 12);
+	auto metalen = readInt(&currentifd[metatagind + 4], bigTiff ? 8 : 4);
+	auto metaoffset = readInt(&currentifd[metatagind + (bigTiff ? 12 : 8)], bigTiff ? 8 : 4);
+	if(metalen == 0 || metaoffset == 0)
+		return "";
+	if(metaoffset < currentifdpos)
+		throw std::runtime_error("Unable to obtain image metadata. File is corrupted");
+
+	// Copy metadata from the IFD
+	auto roff = metaoffset - currentifdpos;
+	auto strlen = roff + metalen > currentifd.size() ? currentifd.size() - roff - metalen : metalen - 1;
+	std::string str(&currentifd[roff], &currentifd[roff + strlen]);
+	return str;
+}
+
+/**
  * Write shape info to the header cache
  * @param shape Dataset shape
  * @param chunksz Chunk size
@@ -908,7 +1033,6 @@ void G2SBigTiffStream::appendIFD(std::uint32_t imgw, std::uint32_t imgh, std::ui
 	// Write IFD + metadata
 	commit(&lastifd[0], lastifd.size());
 }
-
 
 /**
  * Set IFD field

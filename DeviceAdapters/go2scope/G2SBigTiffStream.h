@@ -27,6 +27,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <climits>
 #include "G2SFileUtil.h"
 
 /**
@@ -52,15 +53,28 @@ public:
 	void															close() noexcept;
 	void															parse(std::string& datasetuid, std::vector<std::uint32_t> shape, std::uint32_t& chunksize, std::vector<unsigned char>& metadata, std::uint8_t& bitdepth);
 	void															formHeader() noexcept;
+	void															addImage(const unsigned char* buff, std::size_t len, std::uint32_t imgw, std::uint32_t imgh, std::uint32_t imgdepth, const std::string& meta = "");
+	std::vector<unsigned char>								getImage();
+	std::string													getImageMetadata() const;
 	void															writeShapeInfo(const std::vector<std::uint32_t>& shape, std::uint32_t chunksz) noexcept;
 	void															writeDatasetUid(const std::string& datasetuid) noexcept;
+	void															advanceIFD() noexcept { currentifd.clear(); currentifdpos = nextifdpos; }
 	void															setChunkIndex(std::uint32_t val) noexcept;
 	std::uint32_t												getChunkIndex() const noexcept { return chunkindex; }
+	void															setCurrentImage(std::uint32_t val) noexcept { currentimage = val; }
+	std::uint32_t												getCurrentImage() const noexcept { return currentimage; }
 	void															appendMetadata(const std::vector<unsigned char>& meta);
 	const std::vector<unsigned char>&					getHeader() const noexcept { return header; }
 	std::vector<unsigned char>&							getHeader() noexcept { return header; }
+	const std::vector<unsigned char>&					getCurrentIFD() const noexcept { return currentifd; }
+	const std::vector<unsigned char>&					getLastIFD() const noexcept { return lastifd; }
+	const std::vector<std::uint64_t>&					getIFDOffsets() const noexcept { return ifdcache; }
+	std::uint64_t												getCurrentIFDOffset() const noexcept { return currentifdpos; }
+	std::uint64_t												getNextIFDOffset() const noexcept { return nextifdpos; }
 	std::string													getFilePath() const noexcept { return fpath; }
 	std::uint64_t												getFileSize() const noexcept;
+	std::uint64_t												getMaxFileSize() const noexcept { return bigTiff ? std::numeric_limits<std::uint64_t>::max() : std::numeric_limits<std::uint32_t>::max(); }
+	std::uint32_t												getImageCount() const noexcept { return imgcounter; }
 	bool															isBigTiff() const noexcept { return bigTiff; }
 #ifdef _WIN32
 	bool															isOpen() const noexcept { return fhandle != nullptr; }

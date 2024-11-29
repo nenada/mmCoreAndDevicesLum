@@ -26,7 +26,6 @@
 #include <map>
 #include <vector>
 #include <cmath>
-#include <climits>
 #include "G2SBigTiffStream.h"
 
 /**
@@ -83,21 +82,24 @@ public:
 	std::vector<unsigned char>								getImage(const std::vector<std::uint32_t>& coord = {});
 	std::uint32_t												getDatasetImageCount() const noexcept { std::uint32_t ret = 1; for(std::size_t i = 0; i < shape.size() - 2; i++) ret *= shape[i]; return ret; }
 	std::uint32_t												getImageCount() const noexcept { return imgcounter; }
-	std::uint64_t												getMaxFileSize() const noexcept { return bigTiff ? std::numeric_limits<std::uint64_t>::max() : std::numeric_limits<std::uint32_t>::max(); }
 	std::string													getPath() const noexcept { return dspath; }
 	std::string													getName() const noexcept { return dsname; }
 	bool															isDirectIO() const noexcept { return directIo; }
 	bool															isBigTIFF() const noexcept { return bigTiff; }
 	bool															isInWriteMode() const noexcept { return writemode; }
 	bool															isInReadMode() const noexcept { return !writemode; }
-	bool															isOpen() const noexcept { return !datachunks.empty(); }
+	bool															isOpen() const noexcept { return !datachunks.empty() && activechunk; }
 
 
 private:
 	//============================================================================================================================
 	// Internal methods
 	//============================================================================================================================
-	std::uint32_t												calcImageIndex(const std::vector<std::uint32_t>& coord) const;
+	void															switchDataChunk(std::uint32_t chunkind);
+	void															selectImage(const std::vector<std::uint32_t>& coord);
+	void															advanceImage();
+	std::uint32_t												getChunkImageCount() const noexcept;
+	void															calcImageIndex(const std::vector<std::uint32_t>& coord, std::uint32_t& chunkind, std::uint32_t& imgind) const;
 
 private:
 	//============================================================================================================================

@@ -38,6 +38,9 @@
 #include <linux/fs.h>
 #endif
 
+#define G2SFOLDER_EXT					".g2s"
+#define G2SFILE_EXT						".g2s.tif"
+
 /**
  * Class constructor
  * Constructor doesn't open the file, just creates an object set sets the configuration
@@ -89,21 +92,19 @@ void G2SBigTiffDataset::create(const std::string& path, bool dio, bool fbig, std
 
 	// Determine dataset path
 	std::uint32_t counter = 1;
-	std::string dext = ".g2s";
-	std::string fext = ".g2s.tif";
-	std::filesystem::path xpath = basepath.parent_path() / (dsname + dext);
+	std::filesystem::path xpath = basepath.parent_path() / (dsname + G2SFOLDER_EXT);
 	while(std::filesystem::exists(xpath))
 	{
 		// If the file path (path + name) exists, it should not be an error
 		// nor the file should be overwritten, first available suffix (index) will be appended to the file name
-		auto tmpname = dsname + "_" + std::to_string(counter++) + dext;
+		auto tmpname = dsname + "_" + std::to_string(counter++) + G2SFOLDER_EXT;
 		xpath = basepath.parent_path() / tmpname;
 	}
 	dspath = xpath.u8string();
 
 
 	// Create a first file (data chunk)
-	std::filesystem::path fp = xpath / (dsname + fext);
+	std::filesystem::path fp = xpath / (dsname + G2SFILE_EXT);
 	activechunk = std::make_shared<G2SBigTiffStream>(fp.u8string(), directIo);
 	if(!activechunk)
 		throw std::runtime_error("Unable to create a file stream. Data chunk allocation failed");
@@ -225,7 +226,7 @@ void G2SBigTiffDataset::load(const std::string& path, bool dio)
  */
 void G2SBigTiffDataset::close() noexcept
 {
-	if(!datachunks.empty() && datachunks[0]->isOpen() && writemode)
+	if(writemode && datachunks.size() == 1 && datachunks[0]->isOpen())
 		datachunks[0]->appendMetadata(metadata);
 	for(const auto& fx : datachunks)
 		fx->close();
@@ -235,6 +236,7 @@ void G2SBigTiffDataset::close() noexcept
 	metadata.clear();
 	shape.clear();
 	datachunks.clear();
+	activechunk.reset();
 }
 
 /**
@@ -327,7 +329,7 @@ void G2SBigTiffDataset::setPixelFormat(std::uint8_t depth, std::uint8_t vsamples
 void G2SBigTiffDataset::setMetadata(const std::string& meta)
 {
 	if(!writemode)
-		throw std::runtime_error("Unable to set pixel format in read mode");
+		throw std::runtime_error("Unable to set dataset metadata in read mode");
 	
 	metadata.clear();
 	if(meta.empty())
@@ -398,6 +400,7 @@ std::string G2SBigTiffDataset::getMetadata() const noexcept
  * For other images getImage() should always be called prior to calling getImageMetadata()
  * @param coord Image coordinates
  * @return Image metadata
+ * @throws std::runtime_error
  */
 std::string G2SBigTiffDataset::getImageMetadata(const std::vector<std::uint32_t>& coord)
 {
@@ -408,36 +411,12 @@ std::string G2SBigTiffDataset::getImageMetadata(const std::vector<std::uint32_t>
 	
 	// Select current image (IFD)
 	if(!coord.empty())
-	{
-		auto ind = calcImageIndex(coord);
-		if(ind >= ifdcache.size())
-			throw std::runtime_error("Invalid operation. Invalid image coordinates");
-		currentimage = ind;
-		loadIFD(ifdcache[ind]);
-	}
-	else if(currentifd.empty())
+		selectImage(coord);
+	else if(activechunk->getCurrentIFD().empty())
 		// Load IFD
-		loadIFD(currentifdpos);
+		activechunk->loadIFD(activechunk->getCurrentIFDOffset());
 
-	// Check IFD tag count
-	auto tagcount = readInt(&currentifd[0], bigTiff ? 8 : 2);
-	if(tagcount == G2STIFF_TAG_COUNT_NOMETA)
-		return "";
-
-	// Obtain metadata OFFSET and length
-	auto metatagind = (bigTiff ? 8 : 2) + G2STIFF_TAG_COUNT_NOMETA * (bigTiff ? 20 : 12);
-	auto metalen = readInt(&currentifd[metatagind + 4], bigTiff ? 8 : 4);
-	auto metaoffset = readInt(&currentifd[metatagind + (bigTiff ? 12 : 8)], bigTiff ? 8 : 4);
-	if(metalen == 0 || metaoffset == 0)
-		return "";
-	if(metaoffset < currentifdpos)
-		throw std::runtime_error("Unable to obtain image metadata. File is corrupted");
-
-	// Copy metadata from the IFD
-	auto roff = metaoffset - currentifdpos;
-	auto strlen = roff + metalen > currentifd.size() ? currentifd.size() - roff - metalen : metalen - 1;
-	std::string str(&currentifd[roff], &currentifd[roff + strlen]);
-	return str;
+	return activechunk->getImageMetadata();
 }
 
 /**
@@ -448,6 +427,7 @@ std::string G2SBigTiffDataset::getImageMetadata(const std::vector<std::uint32_t>
  * Image IFD is stored before pixel data
  * If the new image doesn't belong to the current chunk, a new file will be created automatically, and the current one will be closed
  * @param buff Image buffer
+ * @param len Image buffer length
  * @param meta Image metadata (optional)
  * @throws std::runtime_error
  */
@@ -455,6 +435,8 @@ void G2SBigTiffDataset::addImage(const unsigned char* buff, std::size_t len, con
 {
 	if(!isOpen())
 		throw std::runtime_error("Invalid operation. No open file stream available");
+	if(!writemode)
+		throw std::runtime_error("Invalid operation. Unable to add images in read mode");
 	if(shape.size() < 2)
 		throw std::runtime_error("Invalid operation. Dataset shape is not defined");
 	if(!bigTiff && len > TIFF_MAX_BUFFER_SIZE)
@@ -462,66 +444,35 @@ void G2SBigTiffDataset::addImage(const unsigned char* buff, std::size_t len, con
 	if(!bigTiff && meta.size() > TIFF_MAX_BUFFER_SIZE)
 		throw std::runtime_error("Invalid operation. Metadata string is too large");
 
+	// Check active data chunk
+	if(chunksize > 0 && imgcounter == getChunkImageCount())
+	{
+		// Close current data chunk
+		// Only the first data chunk should contain dataset metadata
+		if(datachunks.size() == 1)
+			activechunk->appendMetadata(metadata);
+		activechunk->close();
+		
+		// Create new data chunk
+		std::filesystem::path fp = std::filesystem::path(dspath) / (dsname + "_" + std::to_string(datachunks.size()) + G2SFILE_EXT);
+		activechunk = std::make_shared<G2SBigTiffStream>(fp.u8string(), directIo, bigTiff, (std::uint32_t)datachunks.size());
+		if(!activechunk)
+			throw std::runtime_error("Unable to add an image. Data chunk allocation failed");
+		activechunk->open(true);
+		if(activechunk->getHeader().empty())
+			throw std::runtime_error("Unable to add an image. File header creation failed");
+		activechunk->writeDatasetUid(datasetuid);
+		activechunk->writeShapeInfo(shape, chunksize);
+		datachunks.push_back(activechunk);
+	}
+
 	// Check file size limits
-	std::uint32_t tot = 0;
-	calcDescSize(meta.empty() ? 0 : meta.size() + 1, getTagCount(meta), nullptr, nullptr, &tot);
-	if(meta.size() + len + currpos + tot > getMaxFileSize())
-		throw std::runtime_error("Invalid operation. File size limit exceeded");
-
-	// Commit header if empty file
-	if(writepos == 0)
-	{
-		commit(&header[0], header.size());
-		lastifdpos = readInt(&header[bigTiff ? 8 : 4], bigTiff ? 8 : 4);
-		configset = true;
-	}
-	// Update last IFD for images in read mode
-	else if(lastifd.empty() && lastifdpos > 0)
-	{
-		// Move read cursor to the last IFD
-		auto lreadpos = readpos;
-		auto lwritepos = writepos;
-		seek(lastifdpos);
-		moveReadCursor(currpos);
-
-		// Load last IFD and change the next IFD offset
-		auto nextoff = parseIFD(lastifd, lastifdsize);
-		if(nextoff == 0)
-			writeInt(&lastifd[lastifdsize - (bigTiff ? 8 : 4)], bigTiff ? 8 : 4, writepos);
-
-		// Update last IFD
-		seek(lastifdpos);
-		commit(&lastifd[0], lastifd.size());
-
-		// Reset cursors
-		moveReadCursor(lreadpos);
-		moveWriteCursor(lwritepos);
-	}
-
-	// Reposition file cursor if last operation was a file read
-	if(writepos != currpos)
-		seek(writepos);
-
-	// Compose next IFD and write image metadata
-	appendIFD(len, meta);
-
-	// Write pixel data
-	commit(buff, len);
-
-	// Add padding bytes
-	auto alignsz = directIo ? ssize : 2;
-	if(len % alignsz != 0)
-	{
-		auto padsize = len - (len / alignsz) * alignsz;
-		std::vector<unsigned char> pbuff(padsize);
-		commit(&pbuff[0], pbuff.size());
-	}
+	activechunk->addImage(buff, len, getWidth(), getHeight(), bitdepth, meta);
+	imgcounter++;
 
 	// Flush pending data
-	ifdcache.push_back(lastifdpos);
-	imgcounter++;
-	if(flushcnt > 0 && imgcounter % flushcnt == 0)
-		flush();
+	if(flushcnt > 0 && activechunk->getImageCount() % flushcnt == 0)
+		activechunk->flush();
 }
 
 /**
@@ -531,54 +482,129 @@ void G2SBigTiffDataset::addImage(const unsigned char* buff, std::size_t len, con
  * If this method is called after the last available image (in sequential mode), or with invalid coordinates an exception will be thrown
  * @param coord Image coordinates
  * @return Image data
+ * @throws std::runtime_error
  */
 std::vector<unsigned char> G2SBigTiffDataset::getImage(const std::vector<std::uint32_t>& coord)
 {
 	if(!isOpen())
 		throw std::runtime_error("Invalid operation. No open file stream available");
-	if(imgcounter == 0 || (currentimage + 1 > imgcounter) || nextifdpos == 0)
+	if(imgcounter == 0)
 		throw std::runtime_error("Invalid operation. No images available");
 
 	// Select current image (IFD)
 	if(!coord.empty())
-	{
-		auto ind = calcImageIndex(coord);
-		if(ind >= ifdcache.size())
-			throw std::runtime_error("Invalid operation. Invalid image coordinates");
-		currentimage = ind;
-		loadIFD(ifdcache[ind]);
-	}
+		selectImage(coord);
 	else
+		advanceImage();
+	return activechunk->getImage();	
+}
+
+/**
+ * Change active data chunk
+ * This method is used only for reading data
+ * Dataset properties from the new data chunk will be validated
+ * @throws std::runtime_error
+ */
+void G2SBigTiffDataset::switchDataChunk(std::uint32_t chunkind)
+{
+	std::string ldataseuid = "";
+	std::vector<std::uint32_t> lshape;
+	std::uint32_t lchunksz = 0;
+	std::vector<unsigned char> lmetadata;
+	std::uint8_t lbitdepth = 0;
+
+	// Change active data chunk
+	activechunk->close();
+	activechunk = datachunks[chunkind];
+	activechunk->open(false);
+	activechunk->parse(ldataseuid, lshape, lchunksz, lmetadata, lbitdepth);
+
+	// Validate dataset properties
+	if(datasetuid != ldataseuid)
+		throw std::runtime_error("Invalid data chunk. Dataset UID missmatch");
+	if(shape.size() != lshape.size())
+		throw std::runtime_error("Invalid data chunk. Dataset shape missmatch");
+	for(std::size_t i = 0; i < shape.size(); i++)
 	{
-		// Clear current IFD before advancing
-		// In a case where getImageMetadata() is called before any getImage() call
-		// we should skip clearing of current IFD, this works only for the first image
-		if(currentimage > 0)
-		{
-			currentifd.clear();
-			currentifdpos = nextifdpos;
-		}
-
-		// Advance current image
-		currentimage++;
-
-		// Load IFD (skip if already loaded by the getImageMetadata())
-		if(currentifd.empty())
-			loadNextIFD();
+		if(shape[i] != lshape[i])
+			throw std::runtime_error("Invalid data chunk. Axis " + std::to_string(i) + " size missmatch");
 	}
+	if(chunksize != lchunksz)
+		throw std::runtime_error("Invalid data chunk. Chunk size missmatch");
+	if(bitdepth != lbitdepth)
+		throw std::runtime_error("Invalid data chunk. Pixel format missmatch");
+}
 
-	// Obtain pixel data strip locations
-	auto offind = (bigTiff ? 8 : 2) + 5 * (bigTiff ? 20 : 12);
-	auto lenind = (bigTiff ? 8 : 2) + 7 * (bigTiff ? 20 : 12);
-	auto dataoffset = readInt(&currentifd[offind + (bigTiff ? 12 : 8)], bigTiff ? 8 : 4);
-	auto datalen = readInt(&currentifd[lenind + (bigTiff ? 12 : 8)], bigTiff ? 8 : 4);
-	if(dataoffset == 0 || datalen == 0)
-		return {};
+/**
+ * Select image
+ * This method will automatically switch active data chunk
+ * @param coord Image coordinates
+ * @throws std::runtime_error
+ */
+void G2SBigTiffDataset::selectImage(const std::vector<std::uint32_t>& coord)
+{
+	if(coord.empty())
+		return;
+	if(!activechunk)
+		throw std::runtime_error("Invalid operation. Invalid data chunk");
 
-	std::vector<unsigned char> ret(datalen);
-	moveReadCursor(seek(dataoffset));
-	fetch(&ret[0], ret.size());
-	return ret;
+	// Calculate data chunk & image index
+	std::uint32_t chunkind = 0, imgind = 0;
+	calcImageIndex(coord, chunkind, imgind);
+	if(chunkind != activechunk->getChunkIndex())
+		switchDataChunk(chunkind);
+	if(imgind >= activechunk->getIFDOffsets().size())
+		throw std::runtime_error("Invalid operation. Invalid image coordinates");
+
+	// Change current image & load IFD
+	activechunk->setCurrentImage(imgind);
+	activechunk->loadIFD(activechunk->getIFDOffsets()[imgind]);
+}
+
+/**
+ * Advance current image
+ * This method will automatically switch active data chunk
+ * @throws std::runtime_error
+ */
+void G2SBigTiffDataset::advanceImage()
+{
+	if(!activechunk)
+		throw std::runtime_error("Invalid operation. Invalid data chunk");
+	if(activechunk == datachunks.back() && (activechunk->getCurrentImage() + 1 > activechunk->getImageCount() || activechunk->getNextIFDOffset() == 0))
+		throw std::runtime_error("Invalid operation. No more images available");
+
+	// Check if need to switch the data chunk
+	if(activechunk->getCurrentImage() + 1 == activechunk->getImageCount())
+		switchDataChunk(activechunk->getChunkIndex() + 1);
+
+	// Clear current IFD before advancing
+	// In a case where getImageMetadata() is called before any getImage() call
+	// we should skip clearing the current IFD; this works only for the first image
+	if(activechunk->getCurrentImage() > 0)
+		activechunk->advanceIFD();
+
+	// Advance current image
+	activechunk->setCurrentImage(activechunk->getCurrentImage() + 1);
+
+	// Load IFD (skip if already loaded by the getImageMetadata())
+	if(activechunk->getCurrentIFD().empty())
+		activechunk->loadNextIFD();
+}
+
+/**
+ * Get number of images in a data chunk
+ * Data chunk represents a dataset subset with one or more slowest changing dimension coordinates
+ * If chunking is turned OFF this method will return 0
+ * @return Image count
+ */
+std::uint32_t G2SBigTiffDataset::getChunkImageCount() const noexcept
+{
+	if(chunksize == 0)
+		return 0;
+	std::uint32_t ret = 1;
+	for(std::size_t i = 1; i < shape.size() - 2; i++)
+		ret *= shape[i];
+	return chunksize * ret;
 }
 
 /**
@@ -589,14 +615,23 @@ std::vector<unsigned char> G2SBigTiffDataset::getImage(const std::vector<std::ui
  * are acquired before moving the Z-stage, in which case dataset with the shape 2-4-3 for coordinates 1-2-1 will return 19 (=1*12 + 2*3 + 1*1)
  * First image coordinate can go beyond the specified shape size
  * @param coord Image coordinates
- * @return Image index
+ * @param chunkind Data chunk index [out]
+ * @param imgind Image index (in the data chunk) [out]
  * @throws std::runtime_error
  */
-std::uint32_t G2SBigTiffDataset::calcImageIndex(const std::vector<std::uint32_t>& coord) const
+void G2SBigTiffDataset::calcImageIndex(const std::vector<std::uint32_t>& coord, std::uint32_t& chunkind, std::uint32_t& imgind) const
 {
 	// Validate coordinates count
 	if(coord.size() > shape.size() - 2)
 		throw std::runtime_error("Invalid number of coordinates");
+	if(chunkind >= datachunks.size() || (chunkind > 0 && chunksize == 0))
+		throw std::runtime_error("Invalid data chunk index");
+	if(coord.empty())
+	{
+		chunkind = 0;
+		imgind = 0;
+		return;
+	}
 
 	// Validate ranges for all axis (except the first)
 	for(std::size_t i = 1; i < coord.size(); i++)
@@ -605,16 +640,27 @@ std::uint32_t G2SBigTiffDataset::calcImageIndex(const std::vector<std::uint32_t>
 			throw std::runtime_error("Invalid coordinate for dimension " + std::to_string(i + 2));
 	}
 
-	// Calculate image index by 
+	// Determine chunk index
+	if(chunksize == 0)
+		chunkind = 0;
+	else
+		chunkind = coord[0] / chunksize;
+
+	// Adjust slowest changing dimension index to set the base for image index calculation
+	std::vector<std::uint32_t> lcoord = coord;
+	std::uint32_t baseind = chunkind * chunksize;
+	lcoord[0] -= baseind;
+
+	// Calculate image index
 	std::uint32_t ind = 0;
-	for(int i = 0; i < coord.size(); i++)
+	for(int i = 0; i < lcoord.size(); i++)
 	{
-		if(coord[i] == 0)
+		if(lcoord[i] == 0)
 			continue;
 		std::uint32_t sum = 1;
 		for(int j = i + 1; j < shape.size() - 2; j++)
 			sum *= shape[j];
-		ind += sum * coord[i];
+		ind += sum * lcoord[i];
 	}
-	return ind;
+	imgind = ind;
 }
