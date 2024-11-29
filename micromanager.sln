@@ -38,6 +38,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Dover", "DeviceAdapters\Dov
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Okolab", "DeviceAdapters\Okolab\Okolab.vcxproj", "{49E0167C-FF14-42F2-BEB4-EDBA568640A5}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "G2SStorageTest", "Tests\G2SStorageTest\G2SStorageTest.vcxproj", "{C87F7284-62EF-4331-9444-9951DB12A57A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -154,6 +156,12 @@ Global
 		{49E0167C-FF14-42F2-BEB4-EDBA568640A5}.Release|x64.ActiveCfg = Release|x64
 		{49E0167C-FF14-42F2-BEB4-EDBA568640A5}.Release|x64.Build.0 = Release|x64
 		{49E0167C-FF14-42F2-BEB4-EDBA568640A5}.Release|x86.ActiveCfg = Release|x64
+		{C87F7284-62EF-4331-9444-9951DB12A57A}.Debug|x64.ActiveCfg = Debug|x64
+		{C87F7284-62EF-4331-9444-9951DB12A57A}.Debug|x64.Build.0 = Debug|x64
+		{C87F7284-62EF-4331-9444-9951DB12A57A}.Debug|x86.ActiveCfg = Debug|x64
+		{C87F7284-62EF-4331-9444-9951DB12A57A}.Release|x64.ActiveCfg = Release|x64
+		{C87F7284-62EF-4331-9444-9951DB12A57A}.Release|x64.Build.0 = Release|x64
+		{C87F7284-62EF-4331-9444-9951DB12A57A}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
