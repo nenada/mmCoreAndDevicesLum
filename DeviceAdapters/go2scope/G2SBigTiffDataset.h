@@ -96,6 +96,7 @@ private:
 	// Internal methods
 	//============================================================================================================================
 	void															switchDataChunk(std::uint32_t chunkind);
+	void															validateDataChunk(std::uint32_t chunkind, bool index);
 	void															selectImage(const std::vector<std::uint32_t>& coord);
 	void															advanceImage();
 	std::uint32_t												getChunkImageCount() const noexcept;

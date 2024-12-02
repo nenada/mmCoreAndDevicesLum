@@ -57,8 +57,9 @@ int main(int argc, char** argv)
 	int flushcycle = 0;
 	int channels = 4;
 	int timepoints = 8;
-	int positions = 1;
+	int positions = 0;
 	int cbuffsize = 16384;
+	int chunksize = 0;
 	bool directio = false;
 	bool printmeta = false;
 	bool optimalaccess = false;
@@ -83,13 +84,13 @@ int main(int argc, char** argv)
 	{
 		std::cout << "Available test suites: write, read, acq" << std::endl << std::endl;
 		std::cout << "For write test type:" << std::endl;
-		std::cout << "G2SStorageTest write [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [flush_cycle]" << std::endl << std::endl;
+		std::cout << "G2SStorageTest write [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [chunk_size] [flush_cycle]" << std::endl << std::endl;
 		
 		std::cout << "For read test type:" << std::endl;
 		std::cout << "G2SStorageTest read [storage_engine] [save_location] [dataset_name] [direct_io] [optimal_access] [print_meta]" << std::endl << std::endl;
 		
 		std::cout << "For acquisition test type:" << std::endl;
-		std::cout << "G2SStorageTest acq [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [flush_cycle]" << std::endl << std::endl;
+		std::cout << "G2SStorageTest acq [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [chunk_size] [flush_cycle]" << std::endl << std::endl;
 		
 		std::cout << "Available storage engines: zarr, bigtiff (default)" << std::endl;
 		std::cout << "Available cameras: demo, hamamatsu" << std::endl;
@@ -102,6 +103,7 @@ int main(int argc, char** argv)
 		std::cout << "By default storage engine uses cached I/O" << std::endl;
 		std::cout << "Default access type is 'optimal'" << std::endl;
 		std::cout << "By default metadata is not printed on the command line" << std::endl;
+		std::cout << "Default chunk size is 0 (no chunking)" << std::endl;
 		std::cout << "Default flush cycle is 0 (file stream is flushed during closing)" << std::endl;
 		std::cout << "Default dataset name is test-[storage_engine]" << std::endl;
 		return 0;
@@ -178,7 +180,7 @@ int main(int argc, char** argv)
 		try { printmeta = std::stoi(argv[7]) != 0; } catch(std::exception& e) { std::cout << "Invalid argument value. " << e.what() << std::endl; return 1; }
 	// Obtain positions (WRITE, ACQ tests)
 	else if(argc > 7)
-		try { positions = (int)std::stoul(argv[7]); } catch(std::exception& e) { std::cout << "Invalid argument value. " << e.what() << std::endl; return 1; }
+		try { positions = (int)std::stoul(argv[7]); } catch(std::exception& e) { std::cout << "Invalid argument value. " << e.what() << std::endl; return 0; }
 
 	// Obtain I/O type (WRITE, ACQ tests)
 	if(argc > 8 && selectedTest != TEST_READ)
@@ -186,7 +188,11 @@ int main(int argc, char** argv)
 
 	// Obtain flush cycle (WRITE, ACQ tests)
 	if(argc > 9 && selectedTest != TEST_READ)
-		try { flushcycle = (int)std::stoul(argv[9]) != 0; } catch(std::exception& e) { std::cout << "Invalid argument value. " << e.what() << std::endl; return 1; }
+		try { chunksize = (int)std::stoul(argv[9]); } catch(std::exception& e) { std::cout << "Invalid argument value. " << e.what() << std::endl; return 0; }
+
+	// Obtain flush cycle (WRITE, ACQ tests)
+	if(argc > 10 && selectedTest != TEST_READ)
+		try { flushcycle = (int)std::stoul(argv[10]); } catch(std::exception& e) { std::cout << "Invalid argument value. " << e.what() << std::endl; return 1; }
 
 	// Print configuration
 	std::cout << "Data location " << savelocation << std::endl;
@@ -260,10 +266,12 @@ int main(int argc, char** argv)
 		}
 
 		// Set storage engine properties
-		if(storageEngine == ENGINE_BIGTIFF) {
+		if(storageEngine == ENGINE_BIGTIFF) 
+		{
 			std::cout << "Setting BigTIFF storage configuration..." << std::endl;
 			core.setProperty("Store", "DirectIO", directio ? 1L : 0L);
 			core.setProperty("Store", "FlushCycle", (long)flushcycle);
+			core.setProperty("Store", "ChunkSize", (long)chunksize);
 		}
 				
 		// Run test

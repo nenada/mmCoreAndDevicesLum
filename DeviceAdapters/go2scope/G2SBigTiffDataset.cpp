@@ -104,7 +104,11 @@ void G2SBigTiffDataset::create(const std::string& path, bool dio, bool fbig, std
 
 
 	// Create a first file (data chunk)
+	std::error_code ec;
 	std::filesystem::path fp = xpath / (dsname + G2SFILE_EXT);
+	std::filesystem::create_directories(fp.parent_path(), ec);
+	if(ec.value() != 0)
+		throw std::runtime_error("Unable to create a file stream. Directory tree creation failed");
 	activechunk = std::make_shared<G2SBigTiffStream>(fp.u8string(), directIo);
 	if(!activechunk)
 		throw std::runtime_error("Unable to create a file stream. Data chunk allocation failed");
@@ -194,6 +198,7 @@ void G2SBigTiffDataset::load(const std::string& path, bool dio)
 	activechunk = datachunks.front();
 	activechunk->open(false);
 	activechunk->parse(datasetuid, shape, chunksize, metadata, bitdepth);
+	imgcounter += activechunk->getImageCount();
 
 	// Validate dataset parameters
 	if(activechunk->getChunkIndex() != 0)
@@ -215,6 +220,14 @@ void G2SBigTiffDataset::load(const std::string& path, bool dio)
 	{
 		close();
 		throw std::runtime_error("Unable to load a dataset. Unsupported pixel format");
+	}
+
+	// Parse headers for other data chunks
+	for(std::size_t i = 1; i < datachunks.size(); i++)
+	{
+		validateDataChunk(i, false);
+		imgcounter += datachunks[i]->getImageCount();
+		datachunks[i]->close();
 	}
 }
 
@@ -445,7 +458,7 @@ void G2SBigTiffDataset::addImage(const unsigned char* buff, std::size_t len, con
 		throw std::runtime_error("Invalid operation. Metadata string is too large");
 
 	// Check active data chunk
-	if(chunksize > 0 && imgcounter == getChunkImageCount())
+	if(chunksize > 0 && imgcounter > 0 && imgcounter % getChunkImageCount() == 0)
 	{
 		// Close current data chunk
 		// Only the first data chunk should contain dataset metadata
@@ -503,36 +516,68 @@ std::vector<unsigned char> G2SBigTiffDataset::getImage(const std::vector<std::ui
  * Change active data chunk
  * This method is used only for reading data
  * Dataset properties from the new data chunk will be validated
+ * @param chunkind Data chunk index
  * @throws std::runtime_error
  */
 void G2SBigTiffDataset::switchDataChunk(std::uint32_t chunkind)
+{
+	// Validate next data chunk
+	validateDataChunk(chunkind, true);
+
+	// Change active data chunk
+	activechunk->close();
+	activechunk = datachunks[chunkind];	
+}
+
+/**
+ * Validate data chunk
+ * Data chunk (file stream) will be opened in order to parse the header
+ * File stream won't be closed unless validation fails
+ * @param chunkind Data chunk index
+ * @param index Index data chunk IFDs
+ * @throws std::runtime_error
+ */
+void G2SBigTiffDataset::validateDataChunk(std::uint32_t chunkind, bool index)
 {
 	std::string ldataseuid = "";
 	std::vector<std::uint32_t> lshape;
 	std::uint32_t lchunksz = 0;
 	std::vector<unsigned char> lmetadata;
 	std::uint8_t lbitdepth = 0;
-
-	// Change active data chunk
-	activechunk->close();
-	activechunk = datachunks[chunkind];
-	activechunk->open(false);
-	activechunk->parse(ldataseuid, lshape, lchunksz, lmetadata, lbitdepth);
+	
+	// Open & parse data chunk (file)
+	datachunks[chunkind]->open(false);
+	datachunks[chunkind]->parse(ldataseuid, lshape, lchunksz, lmetadata, lbitdepth, index);
 
 	// Validate dataset properties
 	if(datasetuid != ldataseuid)
+	{
+		datachunks[chunkind]->close();
 		throw std::runtime_error("Invalid data chunk. Dataset UID missmatch");
+	}
 	if(shape.size() != lshape.size())
+	{
+		datachunks[chunkind]->close();
 		throw std::runtime_error("Invalid data chunk. Dataset shape missmatch");
+	}
 	for(std::size_t i = 0; i < shape.size(); i++)
 	{
 		if(shape[i] != lshape[i])
+		{
+			datachunks[chunkind]->close();
 			throw std::runtime_error("Invalid data chunk. Axis " + std::to_string(i) + " size missmatch");
+		}
 	}
 	if(chunksize != lchunksz)
+	{
+		datachunks[chunkind]->close();
 		throw std::runtime_error("Invalid data chunk. Chunk size missmatch");
-	if(bitdepth != lbitdepth)
+	}
+	if(index && bitdepth != lbitdepth)
+	{
+		datachunks[chunkind]->close();
 		throw std::runtime_error("Invalid data chunk. Pixel format missmatch");
+	}
 }
 
 /**

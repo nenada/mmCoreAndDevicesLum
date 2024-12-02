@@ -188,10 +188,10 @@ void G2SBigTiffStream::close() noexcept
 	if(!isOpen())
 		return;
 
-	std::uint64_t fsize = 0;
 	if(writepos > 0 && lastifdsize > 0 && !lastifd.empty())
 	{
 		// This section is skipped if file is empty, or no write operation has been peformed
+		std::uint64_t fsize = writepos;
 		try
 		{
 			// Reposition file cursor if last operation was a file read
@@ -205,6 +205,7 @@ void G2SBigTiffStream::close() noexcept
 				std::vector<unsigned char> pbuff(padsize);
 				commit(&pbuff[0], pbuff.size());
 			}
+			fsize = writepos;
 
 			// Clear last IFD chain offset
 			if(bigTiff)
@@ -287,9 +288,10 @@ void G2SBigTiffStream::close() noexcept
  * @param chunksize Chunk size [out]
  * @param metadata Metadata buffer [out]
  * @param bitdepth Image bit depth [out]
+ * @param index Index IFDs
  * @throws std::runtime_error
  */
-void G2SBigTiffStream::parse(std::string& datasetuid, std::vector<std::uint32_t> shape, std::uint32_t& chunksize, std::vector<unsigned char>& metadata, std::uint8_t& bitdepth)
+void G2SBigTiffStream::parse(std::string& datasetuid, std::vector<std::uint32_t>& shape, std::uint32_t& chunksize, std::vector<unsigned char>& metadata, std::uint8_t& bitdepth, bool index)
 {
 	// Check header size
 	if(header.size() != G2STIFF_HEADER_SIZE)
@@ -370,7 +372,7 @@ void G2SBigTiffStream::parse(std::string& datasetuid, std::vector<std::uint32_t>
 
 	// Index IFDs
 	bool pixformatset = false;
-	if(currentifdpos > 0)
+	if(index && currentifdpos > 0)
 	{
 		seek(currentifdpos);
 		ifdcache.push_back(currentifdpos);

@@ -24,7 +24,9 @@
     <ClCompile Include="G2SBigTiffStream.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CFileUtil.cpp" />
+    <ClCompile Include="CFileUtil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AcqZarrStorage.h">

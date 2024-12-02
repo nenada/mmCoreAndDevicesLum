@@ -56,6 +56,8 @@ void testWritter(CMMCore& core, const std::string& path, const std::string& name
 
 	// Shape convention: Z, T, C, Y, X
 	std::vector<long> shape = { p, t, c, h, w };
+	if(p == 0)
+		shape = { t, c, h, w };
 	auto handle = core.createDataset(path.c_str(), name.c_str(), shape, MM::StorageDataType_GRAY16, "");
 
 	std::cout << "Dataset UID: " << handle << std::endl;
@@ -63,7 +65,7 @@ void testWritter(CMMCore& core, const std::string& path, const std::string& name
 	std::cout << "START OF ACQUISITION" << std::endl;
 	int imgind = 0;
 	auto start = std::chrono::high_resolution_clock::now();
-	for(int i = 0; i < p; i++) 
+	if(p == 0)
 	{
 		for(int j = 0; j < t; j++) 
 		{
@@ -74,21 +76,53 @@ void testWritter(CMMCore& core, const std::string& path, const std::string& name
 
 				// Fetch the image
 				unsigned char* img = reinterpret_cast<unsigned char*>(core.getImage());
-				
+
 				// Generate image metadata
 				auto meta = generateImageMeta(core, imgind);
 
 				// Add image to the stream
 				auto startSave = std::chrono::high_resolution_clock::now();
-				core.addImage(handle.c_str(), imgSize, img, { i, j, k }, meta.c_str());
+				core.addImage(handle.c_str(), imgSize, img, { j, k }, meta.c_str());
 				auto endSave = std::chrono::high_resolution_clock::now();
-				
+
 				// Calculate statistics
 				double imgSaveTimeMs = (endSave - startSave).count() / 1000000.0;
 				double bw = imgSizeMb / (imgSaveTimeMs / 1000.0);
 				std::cout << "Saved image " << imgind++ << " in ";
 				std::cout << std::fixed << std::setprecision(2) << imgSaveTimeMs << " ms, size ";
 				std::cout << std::fixed << std::setprecision(1) << imgSizeMb << " MB, BW: " << bw << " MB/s" << std::endl;
+			}
+		}
+	}
+	else
+	{
+		for(int i = 0; i < p; i++) 
+		{
+			for(int j = 0; j < t; j++) 
+			{
+				for(int k = 0; k < c; k++) 
+				{
+					// Snap an image
+					core.snapImage();
+
+					// Fetch the image
+					unsigned char* img = reinterpret_cast<unsigned char*>(core.getImage());
+				
+					// Generate image metadata
+					auto meta = generateImageMeta(core, imgind);
+
+					// Add image to the stream
+					auto startSave = std::chrono::high_resolution_clock::now();
+					core.addImage(handle.c_str(), imgSize, img, { i, j, k }, meta.c_str());
+					auto endSave = std::chrono::high_resolution_clock::now();
+				
+					// Calculate statistics
+					double imgSaveTimeMs = (endSave - startSave).count() / 1000000.0;
+					double bw = imgSizeMb / (imgSaveTimeMs / 1000.0);
+					std::cout << "Saved image " << imgind++ << " in ";
+					std::cout << std::fixed << std::setprecision(2) << imgSaveTimeMs << " ms, size ";
+					std::cout << std::fixed << std::setprecision(1) << imgSizeMb << " MB, BW: " << bw << " MB/s" << std::endl;
+				}
 			}
 		}
 	}
@@ -100,7 +134,7 @@ void testWritter(CMMCore& core, const std::string& path, const std::string& name
 
 	// Calculate storage driver bandwidth
 	double totalTimeS = (end - start).count() / 1000000000.0;
-	double totalSizemb = (double)imgSize * p * t * c / (1024.0 * 1024.0);
+	double totalSizemb = (double)imgSize * (p == 0 ? 1 : p) * t * c / (1024.0 * 1024.0);
 	double bw = totalSizemb / totalTimeS;
 	std::cout << std::fixed << std::setprecision(3) << "Acquisition completed in " << totalTimeS << " sec" << std::endl;
 	std::cout << std::fixed << std::setprecision(1) << "Dataset size " << totalSizemb << " MB" << std::endl;

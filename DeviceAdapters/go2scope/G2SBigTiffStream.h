@@ -51,7 +51,7 @@ public:
 	//============================================================================================================================
 	void															open(bool trunc);
 	void															close() noexcept;
-	void															parse(std::string& datasetuid, std::vector<std::uint32_t> shape, std::uint32_t& chunksize, std::vector<unsigned char>& metadata, std::uint8_t& bitdepth);
+	void															parse(std::string& datasetuid, std::vector<std::uint32_t>& shape, std::uint32_t& chunksize, std::vector<unsigned char>& metadata, std::uint8_t& bitdepth, bool index = true);
 	void															formHeader() noexcept;
 	void															addImage(const unsigned char* buff, std::size_t len, std::uint32_t imgw, std::uint32_t imgh, std::uint32_t imgdepth, const std::string& meta = "");
 	std::vector<unsigned char>								getImage();

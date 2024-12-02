@@ -86,7 +86,7 @@ std::vector<long> calcCoordsRandom(long ind, const std::vector<long>& shape)
 void testReader(CMMCore& core, const std::string& path, const std::string& name, bool optimized, bool printmeta)
 {
 	std::cout << std::endl << "Starting G2SStorage driver reader test" << std::endl;
-	std::filesystem::path ds = std::filesystem::u8path(path) / name;
+	std::filesystem::path ds = std::filesystem::u8path(path) / (name + ".g2s");
 
 	// Load the dataset
 	auto start = std::chrono::high_resolution_clock::now();
@@ -97,13 +97,18 @@ void testReader(CMMCore& core, const std::string& path, const std::string& name,
 	// Obtain dataset shape
 	auto shape = core.getDatasetShape(handle.c_str());
 	auto ptype = core.getDatasetPixelType(handle.c_str());
-	auto imgcnt = shape[0] * shape[1] * shape[2];
-	auto imgSize = shape[3] * shape[4] * (ptype == MM::StorageDataType_GRAY16 ? 2 : 1);
+	auto pos = shape.size() == 5 ? shape[0] : 0;
+	auto timep = shape.size() == 5 ? shape[1] : shape[0];
+	auto chn = shape.size() == 5 ? shape[2] : shape[1];
+	auto imgw = shape.size() == 5 ? shape[3] : shape[2];
+	auto imgh = shape.size() == 5 ? shape[4] : shape[3];
+	auto imgcnt = (pos == 0 ? 1 : pos) * timep * chn;
+	auto imgSize = imgw * imgh * (ptype == MM::StorageDataType_GRAY16 ? 2 : 1);
 	double imgSizeMb = (double)imgSize / (1024.0 * 1024.0);
 	double totalSizeMb = (double)imgSize * imgcnt / (1024.0 * 1024.0);
 	std::cout << std::fixed << std::setprecision(3) << "Dataset loaded in " << loadTimeS << " sec, contains " << imgcnt << " images" << std::endl;
 	std::cout << "Dataset UID: " << handle << std::endl;
-	std::cout << "Dataset shape (W-H-C-T-P): " << shape[4] << " x " << shape[3] << " x " << shape[2] << " x " << shape[1] << " x " << shape[0] << " x " << (ptype == MM::StorageDataType_GRAY16 ? 16 : 8) << "-bit" << std::endl << std::endl;
+	std::cout << "Dataset shape (W-H-C-T-P): " << imgw << " x " << imgh << " x " << chn << " x " << timep << " x " << pos << " x " << (ptype == MM::StorageDataType_GRAY16 ? 16 : 8) << "-bit" << std::endl << std::endl;
 
 	// Read images
 	for(long i = 0; i < imgcnt; i++)

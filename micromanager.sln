@@ -39,6 +39,10 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Okolab", "DeviceAdapters\Okolab\Okolab.vcxproj", "{49E0167C-FF14-42F2-BEB4-EDBA568640A5}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "G2SStorageTest", "Tests\G2SStorageTest\G2SStorageTest.vcxproj", "{C87F7284-62EF-4331-9444-9951DB12A57A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{2916E620-1157-4154-8223-887D383E9DE6} = {2916E620-1157-4154-8223-887D383E9DE6}
+		{36571628-728C-4ACD-A47F-503BA91C5D43} = {36571628-728C-4ACD-A47F-503BA91C5D43}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
