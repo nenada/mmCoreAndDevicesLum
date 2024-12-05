@@ -52,7 +52,7 @@ static const char* g_Prop_FirmwareVersion = "FirmwareVersion";
 static const char* g_Prop_ModuleVersion = "ModuleVersion";
 static const char* g_prop_ChannelSequence = "ChannelSequence";
 
-#define LUMENCOR_DEV_VERSION "1.0.2"
+#define LUMENCOR_DEV_VERSION "1.0.3"
 
 class LightEngineAPI;
 
@@ -145,6 +145,7 @@ public:
    int OnPort(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct);
 
+
 private:
    int LoadChannelSequence(const std::vector<int>& channelSequence);
    int LoadChannelSequence(const std::vector<std::string>& sequence);
@@ -152,6 +153,7 @@ private:
 
    void* engine;
    bool initialized;
+   bool demo;
    std::string model;
    std::string connection;
    std::string ttlPort;

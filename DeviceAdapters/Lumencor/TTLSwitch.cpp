@@ -44,6 +44,7 @@ const map<string, int> ttlMap =
 
 CTTLSwitch::CTTLSwitch() :
    initialized(false),
+	demo(false),
 	engine(0),
 	currentChannel(0)
 {
@@ -71,7 +72,6 @@ CTTLSwitch::CTTLSwitch() :
 	// arduino port
 	pAct = new CPropertyAction(this, &CTTLSwitch::OnPort);
 	CreateProperty(MM::g_Keyword_Port, "Undefined", MM::String, false, pAct, true);
-
 }                                                                            
                                                                              
 CTTLSwitch::~CTTLSwitch()
@@ -91,72 +91,86 @@ int CTTLSwitch::Initialize()
 
 	int ret(DEVICE_OK);
 
-	// create light engine
-	ret = lum_createLightEngine(&engine); // gen3 (universal)
-	if (ret != LUM_OK)
+	int maxIntensity(0);
+	channels.clear();
+	if (connection.empty())
 	{
-		ostringstream os;
-		os << "Light Engine create() failed for model: " << model;
-		LogMessage(os.str());
-		return ERR_INIT;
-	}
-
-	size_t numDots = count(connection.begin(), connection.end(), '.');
-	if (numDots == 3)
-	{
-		// interpreting destination as IP address
-		ret = lum_connectTCP(engine, connection.c_str(), LUM_DEFAULT_TCP_PORT);
+		demo = true;
+		channels.push_back("VIOLET");
+		channels.push_back("CYAN");
+		channels.push_back("GREEN");
+		channels.push_back("RED");
+		maxIntensity = 1000;
 	}
 	else
 	{
-		ret = lum_connectCOM(engine, connection.c_str(), LUM_STANDARD_BAUD_RATE);
-	}
+		demo = false;
+		// create light engine
+		ret = lum_createLightEngine(&engine); // gen3 (universal)
+		if (ret != LUM_OK)
+		{
+			ostringstream os;
+			os << "Light Engine create() failed for model: " << model;
+			LogMessage(os.str());
+			return ERR_INIT;
+		}
 
-	if (ret != LUM_OK)
-		return RetrieveError();
+		size_t numDots = count(connection.begin(), connection.end(), '.');
+		if (numDots == 3)
+		{
+			// interpreting destination as IP address
+			ret = lum_connectTCP(engine, connection.c_str(), LUM_DEFAULT_TCP_PORT);
+		}
+		else
+		{
+			ret = lum_connectCOM(engine, connection.c_str(), LUM_STANDARD_BAUD_RATE);
+		}
 
-	// get light engine info
-	// obtain model
-	char engModel[LUM_MAX_MESSAGE_LENGTH];
-	ret = lum_getModel(engine, engModel, LUM_MAX_MESSAGE_LENGTH);
-	if (ret != LUM_OK)
-		return RetrieveError();
-	CreateProperty(g_Prop_ModelName, engModel, MM::String, true);
-
-	// obtain firmware version
-	char version[LUM_MAX_MESSAGE_LENGTH];
-	ret = lum_getVersion(engine, version, LUM_MAX_MESSAGE_LENGTH);
-	if (ret != LUM_OK)
-		return RetrieveError();
-	CreateProperty(g_Prop_FirmwareVersion, version, MM::String, true);
-
-	// obtain device serial number
-	char serialNumber[LUM_MAX_MESSAGE_LENGTH];
-	ret = lum_getSerialNumber(engine, serialNumber, LUM_MAX_MESSAGE_LENGTH);
-	if (ret != LUM_OK)
-		return RetrieveError();
-	CreateProperty(g_Prop_SerialNumber, serialNumber, MM::String, true);
-
-	int maxIntensity(0);
-	ret = lum_getMaximumIntensity(engine, &maxIntensity);
-	if (ret != LUM_OK)
-		return RetrieveError();
-
-	// discover light channels
-	int numChannels(0);
-	ret = lum_getNumberOfChannels(engine, &numChannels);
-	if (ret != LUM_OK)
-		return RetrieveError();
-
-	channels.clear();
-	for (int i = 0; i < numChannels; i++)
-	{
-		char chName[LUM_MAX_MESSAGE_LENGTH];
-		ret = lum_getChannelName(engine, i, chName, LUM_MAX_MESSAGE_LENGTH);
 		if (ret != LUM_OK)
 			return RetrieveError();
 
-		channels.push_back(chName);
+		// get light engine info
+		// obtain model
+		char engModel[LUM_MAX_MESSAGE_LENGTH];
+		ret = lum_getModel(engine, engModel, LUM_MAX_MESSAGE_LENGTH);
+		if (ret != LUM_OK)
+			return RetrieveError();
+		CreateProperty(g_Prop_ModelName, engModel, MM::String, true);
+
+		// obtain firmware version
+		char version[LUM_MAX_MESSAGE_LENGTH];
+		ret = lum_getVersion(engine, version, LUM_MAX_MESSAGE_LENGTH);
+		if (ret != LUM_OK)
+			return RetrieveError();
+		CreateProperty(g_Prop_FirmwareVersion, version, MM::String, true);
+
+		// obtain device serial number
+		char serialNumber[LUM_MAX_MESSAGE_LENGTH];
+		ret = lum_getSerialNumber(engine, serialNumber, LUM_MAX_MESSAGE_LENGTH);
+		if (ret != LUM_OK)
+			return RetrieveError();
+		CreateProperty(g_Prop_SerialNumber, serialNumber, MM::String, true);
+
+		ret = lum_getMaximumIntensity(engine, &maxIntensity);
+		if (ret != LUM_OK)
+			return RetrieveError();
+
+		// discover light channels
+		int numChannels(0);
+		ret = lum_getNumberOfChannels(engine, &numChannels);
+		if (ret != LUM_OK)
+			return RetrieveError();
+
+		channels.clear();
+		for (int i = 0; i < numChannels; i++)
+		{
+			char chName[LUM_MAX_MESSAGE_LENGTH];
+			ret = lum_getChannelName(engine, i, chName, LUM_MAX_MESSAGE_LENGTH);
+			if (ret != LUM_OK)
+				return RetrieveError();
+
+			channels.push_back(chName);
+		}
 	}
 
 	// State
@@ -214,31 +228,33 @@ int CTTLSwitch::Initialize()
 		return ret;
             
 	// get TTL control info
-	ret = SendSerialCommand(ttlPort.c_str(), "VER", "\r");
-	if (ret != DEVICE_OK)
+	if (!demo)
 	{
-		LogMessage("Unable to connect to the TTL controller.");
-		return ret;
+		ret = SendSerialCommand(ttlPort.c_str(), "VER", "\r");
+		if (ret != DEVICE_OK)
+		{
+			LogMessage("Unable to connect to the TTL controller.");
+			return ret;
+		}
+		::Sleep(500);
+		string answer;
+		ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
+		if (ret != DEVICE_OK)
+		{
+			LogMessage("No response from the TTL controller.");
+			return ret;
+		}
+		::Sleep(500);
+
+		ret = CreateProperty("TTLVersion", answer.c_str(), MM::String, true);
+		if (ret != DEVICE_OK)
+			return ret;
+
+		// initially set the first channel
+		ret = SetTTLController(channelLookup[channels[0]], 100.0);
+		if (ret != DEVICE_OK)
+			return ret;
 	}
-	::Sleep(500);
-	string answer;
-	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
-	if (ret != DEVICE_OK)
-	{
-		LogMessage("No response from the TTL controller.");
-		return ret;
-	}
-	::Sleep(500);
-
-	ret = CreateProperty("TTLVersion", answer.c_str(), MM::String, true);
-	if (ret != DEVICE_OK)
-		return ret;
-
-	// initially set the first channel
-	ret = SetTTLController(channelLookup[channels[0]], 100.0);
-	if (ret != DEVICE_OK)
-		return ret;
-
    UpdateStatus();
 
    initialized = true;
@@ -249,8 +265,11 @@ int CTTLSwitch::Shutdown()
 {
    if (initialized)
    {
-		lum_disconnect(engine);
-		lum_deleteLightEngine(engine);
+		if (!demo)
+		{
+			lum_disconnect(engine);
+			lum_deleteLightEngine(engine);
+		}
 		engine = 0;
       initialized = false;
    }
@@ -260,6 +279,9 @@ int CTTLSwitch::Shutdown()
 
 int CTTLSwitch::SetTTLController(const ChannelInfo& inf, double delayMs)
 {
+	if (demo)
+		return DEVICE_OK;
+
 	int ttlId = inf.ttlId;
 	int exposureUs = (int)nearbyint(inf.exposureMs * 1000);
 
@@ -298,6 +320,9 @@ int CTTLSwitch::SetTTLController(const ChannelInfo& inf, double delayMs)
  */
 int CTTLSwitch::LoadChannelSequence(const std::vector<int>& sequence)
 {
+	if (demo)
+		return DEVICE_OK;
+
 	ostringstream os;
 	os << "SQ ";
 	for (size_t i = 0; i < sequence.size(); i++)
@@ -330,6 +355,9 @@ int CTTLSwitch::LoadChannelSequence(const std::vector<int>& sequence)
 
 int CTTLSwitch::LoadChannelSequence(const std::vector<std::string>& sequence)
 {
+	if (demo)
+		return DEVICE_OK;
+
 	ostringstream os;
 	os << "SQ ";
 	for (size_t i = 0; i < sequence.size(); i++)
@@ -366,8 +394,16 @@ int CTTLSwitch::RetrieveError()
 	const int maxLength(1024);
 	int errorCode;
 	char errorText[maxLength];
-	lum_getLastErrorCode(engine, &errorCode);
-	lum_getLastErrorText(engine, errorText, maxLength);
+	if (demo)
+	{
+		errorCode = -1;
+		sprintf(errorText, "demo error");
+	}
+	else
+	{
+		lum_getLastErrorCode(engine, &errorCode);
+		lum_getLastErrorText(engine, errorText, maxLength);
+	}
 
 	ostringstream os;
 	os << "Error : " << errorCode << ", " << errorText << endl;
@@ -379,6 +415,9 @@ int CTTLSwitch::RetrieveError()
 // set all intensities to 0
 int CTTLSwitch::ZeroAll()
 {
+	if (demo)
+		return DEVICE_OK;
+
 	vector<int> ints;
 	for (size_t i = 0; i < channels.size(); i++) ints.push_back(0);
 	int ret = lum_setMultipleIntensities(engine, &ints[0], (int)channels.size());
@@ -391,6 +430,9 @@ int CTTLSwitch::ZeroAll()
 // used by the shutter emulator to implement closed shutter state
 int CTTLSwitch::TurnAllOff()
 {
+	if (demo)
+		return DEVICE_OK;
+
 	vector<lum_bool> states;
 	for (size_t i = 0; i < channels.size(); i++) states.push_back(false);
 	int ret = lum_setMultipleChannels(engine, &states[0], (int)channels.size());
@@ -478,6 +520,7 @@ int CTTLSwitch::OnLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
 		auto it = channelLookup.find(channelLabel);
 		if (it == channelLookup.end())
 			return ERR_TTL_CHANNEL_NAME;
+
 
 		int ret = SetTTLController(it->second, ttlAnswerDelayMs);
 		if (ret != DEVICE_OK)
@@ -575,9 +618,12 @@ int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
 		LogMessage(">>>OnChannelIntensity-AfterSet");
       long val;
       pProp->Get(val);
-		int ret = lum_setIntensity(engine, channelIdx, val);
-      if (ret != LUM_OK)
-			return RetrieveError();
+		if (!demo)
+		{
+			int ret = lum_setIntensity(engine, channelIdx, val);
+			if (ret != LUM_OK)
+				return RetrieveError();
+		}
 		ostringstream os;
 		os << ">>>Set intensity :" << val;
 		LogMessage(os.str());
@@ -585,10 +631,13 @@ int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
    else if (eAct == MM::BeforeGet)
    {
 		LogMessage(">>>OnChannelIntensity-BeforGet");
-      int inten;
-      int ret = lum_getIntensity(engine, channelIdx, &inten);
-      if (ret != DEVICE_OK)
-         RetrieveError();
+      int inten(0);
+		if (!demo)
+		{
+			int ret = lum_getIntensity(engine, channelIdx, &inten);
+			if (ret != DEVICE_OK)
+				RetrieveError();
+		}
 
       pProp->Set((long)inten);
 		ostringstream os;
@@ -664,4 +713,3 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 
 	return DEVICE_OK;
 }
-
