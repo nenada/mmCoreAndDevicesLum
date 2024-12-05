@@ -71,7 +71,8 @@
       <AdditionalDependencies>LightEngineAPI.lib;DoverAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(TargetPath) C:\"Program Files"\Micro-Manager-Targa</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -96,7 +97,8 @@
       <AdditionalDependencies>LightEngineAPI.lib;DoverAPI.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(TargetPath) C:\"Program Files"\Micro-Manager-Targa</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
