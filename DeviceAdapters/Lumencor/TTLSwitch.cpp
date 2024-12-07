@@ -314,6 +314,37 @@ int CTTLSwitch::SetTTLController(const ChannelInfo& inf, double delayMs)
 	return DEVICE_OK;
 }
 
+int CTTLSwitch::RunSequence()
+{
+	if (demo)
+		return DEVICE_OK;
+
+	int ret = SendSerialCommand(ttlPort.c_str(), "G", "\r");
+	LogMessage("Sent G command");
+	if (ret != DEVICE_OK)
+	{
+		LogMessage("Failed to send G command to " + ttlPort);
+		return ret;
+	}
+
+	string answer;
+	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
+	LogMessage("Received G answer: " + answer);
+	if (ret != DEVICE_OK)
+	{
+		LogMessage("Failed to get answer from G command from " + ttlPort);
+		return ret;
+	}
+	answer.erase(std::remove(answer.begin(), answer.end(), '\n'), answer.end());
+	if (answer.size() == 0 || answer.at(0) != 'A')
+	{
+		LogMessage("G command failed: " + answer);
+		return ERR_TTL_COMMAND_FAILED;
+	}
+
+	return DEVICE_OK;
+}
+
 /**
  * Sends sequence information to Arduino
  * @param sequence - channel index sequence
@@ -711,5 +742,23 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 		LogMessage(os.str());
 	}
 
+	return DEVICE_OK;
+}
+
+int CTTLSwitch::OnRunSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set("0"); // always false
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long val(0);
+		pProp->Get(val);
+		if (val == 1) {
+			// run the sequence
+			return RunSequence();
+		}
+	}
 	return DEVICE_OK;
 }

@@ -144,12 +144,14 @@ public:
    int OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnPort(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnRunSequence(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 
 private:
    int LoadChannelSequence(const std::vector<int>& channelSequence);
    int LoadChannelSequence(const std::vector<std::string>& sequence);
    int SetTTLController(const ChannelInfo& inf, double delayMs=0.0);
+   int RunSequence();
 
    void* engine;
    bool initialized;
