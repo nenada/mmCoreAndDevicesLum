@@ -216,6 +216,11 @@ int CTTLSwitch::Initialize()
 	pAct = new CPropertyAction(this, &CTTLSwitch::OnChannelSequence);
 	CreateProperty(g_prop_ChannelSequence, "", MM::String, false, pAct);
 
+	// set run sequence
+	pAct = new CPropertyAction(this, &CTTLSwitch::OnRunSequence);
+	CreateProperty(g_prop_RunSequence, "0", MM::Integer, false, pAct);
+	AddAllowedValue(g_prop_RunSequence, "0");
+	AddAllowedValue(g_prop_RunSequence, "1");
 
    // reset light engine
    // ------------------
@@ -749,7 +754,7 @@ int CTTLSwitch::OnRunSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	if (eAct == MM::BeforeGet)
 	{
-		pProp->Set("0"); // always false
+		pProp->Set(0L); // always false
 	}
 	else if (eAct == MM::AfterSet)
 	{
