@@ -219,8 +219,7 @@ int CTTLSwitch::Initialize()
 	// set run sequence
 	pAct = new CPropertyAction(this, &CTTLSwitch::OnRunSequence);
 	CreateProperty(g_prop_RunSequence, "0", MM::Integer, false, pAct);
-	AddAllowedValue(g_prop_RunSequence, "0");
-	AddAllowedValue(g_prop_RunSequence, "1");
+	SetPropertyLimits(g_prop_RunSequence, 0, 1);
 
    // reset light engine
    // ------------------
