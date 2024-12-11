@@ -21,10 +21,10 @@
     <ClCompile Include="G2SBigTiffDataset.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="G2SBigTiffStream.cpp">
+    <ClCompile Include="CFileUtil.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CFileUtil.cpp">
+    <ClCompile Include="G2SBigTiffStream.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

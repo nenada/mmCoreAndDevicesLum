@@ -58,12 +58,16 @@ public:
    int Delete(char* handle);
    int List(const char* path, char** listOfDatasets, int maxItems, int maxItemLength);
    int AddImage(const char* handle, int sizeInBytes, unsigned char* pixels, int coordinates[], int numCoordinates, const char* imageMeta);
+   int AppendImage(const char* handle, int sizeInBytes, unsigned char* pixels, const char* imageMeta);
    int GetSummaryMeta(const char* handle, char* meta, int bufSize);
    int GetImageMeta(const char* handle, int coordinates[], int numCoordinates, char* meta, int bufSize);
    const unsigned char* GetImage(const char* handle, int coordinates[], int numCoordinates);
    int GetNumberOfDimensions(const char* handle, int& numDimensions);
    int GetDimension(const char* handle, int dimension, char* name, int nameLength, char* meaning, int meaningLength);
    int GetCoordinate(const char* handle, int dimension, int coordinate, char* name, int nameLength);
+   bool IsOpen(const char* handle);
+   int  GetPath(const char* handle, char* path, int maxPathLength);
+
 
    // action interface
    // ----------------
@@ -79,5 +83,6 @@ private:
    std::string getErrorMessage(int code);
    void destroyStream();
    int ConvertToZarrType(MM::StorageDataType type);
+   std::string streamPath;
 };
 

@@ -72,10 +72,6 @@
       <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)\CZI\acquire-zarr\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>acquire-zarr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>
-      </Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -100,26 +96,22 @@
       <AdditionalLibraryDirectories>$(MM_3RDPARTYPRIVATE)\CZI\acquire-zarr\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>acquire-zarr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>
-      </Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CFileUtil.cpp" />
+    <ClCompile Include="G2SBigTiffDataset.cpp" />
     <ClCompile Include="G2SBigTiffStorage.cpp" />
     <ClCompile Include="G2SBigTiffStream.cpp" />
     <ClCompile Include="G2SStorage.cpp" />
     <ClCompile Include="AcqZarrStorage.cpp" />
-    <ClCompile Include="G2SBigTiffDataset.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AcqZarrStorage.h" />
+    <ClInclude Include="G2SBigTiffDataset.h" />
     <ClInclude Include="G2SBigTiffStorage.h" />
     <ClInclude Include="G2SBigTiffStream.h" />
     <ClInclude Include="G2SFileUtil.h" />
     <ClInclude Include="G2SStorage.h" />
-    <ClInclude Include="G2SBigTiffDataset.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\MMDevice\MMDevice-StaticRuntime.vcxproj">
