@@ -1462,8 +1462,11 @@ namespace MM {
    /**
     * Storage API
     * Dev Notes:
-    *    - all "meta" variables refer to JSON encoded strings
-    *    - we can create multiple datasets in parallel
+    *    - all "meta" variables are ASCII strings, typically JSON encoded, but not necessarily
+    *    - whether the same device can create multiple datasets at the same time is implementation dependent
+    *    - AddImage function allows for inserting images in arbitrary order to any point in the coordinate space.
+    *      This is very difficult to implement for most file formats. The implementation should return a run time error
+    *      if the images are inserted in the order that is not supported.
     */
    class Storage : public Device {
    public:
@@ -1480,6 +1483,16 @@ namespace MM {
        * The caller should save the "handle" output parameter to refer to this dataset in subsequent code.
        */
       virtual int Create(const char* path, const char* name, int numberOfDimensions, const int shape[], MM::StorageDataType pixType, const char* meta, char* handle) = 0;
+
+      /**
+       * Returns the actual path of the opened dataset.
+       * 
+       * \param handle - dataset handle
+       * \param path - returned path to the opened dataset
+       * \param maxPathLength - path buffer length
+       * \return - status code
+       */
+      virtual int GetPath(const char* handle, char* path, int maxPathLength) = 0;
 
       /**
        * Configure dimension
@@ -1500,6 +1513,11 @@ namespace MM {
       virtual int Close(const char* handle) = 0;
 
       /**
+       * Returns true if it can accept new images.
+       */
+      virtual bool IsOpen(const char* handle) = 0;
+
+      /**
        * Load
        * Load an existing dataset.
        * Loaded datasets are immutable; any attempt to add images will fail.
@@ -1508,6 +1526,22 @@ namespace MM {
        * is a preferred way of implementation.
        */
       virtual int Load(const char* path, char* handle) = 0;
+
+      /**
+       * Checks if the device is compatible with a given dataset path.
+       * This is used to test the format of the dataset, without loading
+       * \param path - dataset path (file or directory)
+       * \return - true if the device recognizes and can open the path.
+       */
+      virtual bool CanLoad(const char* path) = 0;
+
+      /**
+       * Returns progress of the current operation in percent.
+       * TODO: there is an implicit assumption that the adapter can execute only one action at the time
+       * \param handle - dataset handle
+       * \return progress of the current operation 0-100, or -1 if idle or not implemented
+       */
+      virtual int GetProgress(const char* handle) = 0;
 
       /**
        * Deletes a dataset with a given handle
@@ -1525,6 +1559,11 @@ namespace MM {
        * Inserts an image into the dataset
        */
       virtual int AddImage(const char* handle, int sizeInBytes, unsigned char* pixels, int coordinates[], int numCoordinates, const char* imageMeta) = 0;
+
+      /**
+       * Appends image to the dataset, assuming order specified by the shape
+       */
+      virtual int AppendImage(const char* handle, int sizeInBytes, unsigned char* pixels, const char* imageMeta) = 0;
 
       /**
        * Returns summary metadata
