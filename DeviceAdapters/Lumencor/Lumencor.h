@@ -152,7 +152,7 @@ private:
    int LoadChannelSequence(const std::vector<int>& channelSequence);
    int LoadChannelSequence(const std::vector<std::string>& sequence);
    int SetTTLController(const ChannelInfo& inf, double delayMs=0.0);
-   int RunSequence();
+   int RunSequence( bool waitForAnswer = true);
 
    void* engine;
    bool initialized;

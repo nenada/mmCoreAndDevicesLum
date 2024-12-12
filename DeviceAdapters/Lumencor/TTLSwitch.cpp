@@ -318,7 +318,7 @@ int CTTLSwitch::SetTTLController(const ChannelInfo& inf, double delayMs)
 	return DEVICE_OK;
 }
 
-int CTTLSwitch::RunSequence()
+int CTTLSwitch::RunSequence(bool waitForAnswer)
 {
 	if (demo)
 		return DEVICE_OK;
@@ -331,19 +331,22 @@ int CTTLSwitch::RunSequence()
 		return ret;
 	}
 
-	string answer;
-	ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
-	LogMessage("Received G answer: " + answer);
-	if (ret != DEVICE_OK)
+	if (waitForAnswer)
 	{
-		LogMessage("Failed to get answer from G command from " + ttlPort);
-		return ret;
-	}
-	answer.erase(std::remove(answer.begin(), answer.end(), '\n'), answer.end());
-	if (answer.size() == 0 || answer.at(0) != 'A')
-	{
-		LogMessage("G command failed: " + answer);
-		return ERR_TTL_COMMAND_FAILED;
+		string answer;
+		ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
+		LogMessage("Received G answer: " + answer);
+		if (ret != DEVICE_OK)
+		{
+			LogMessage("Failed to get answer from G command from " + ttlPort);
+			return ret;
+		}
+		answer.erase(std::remove(answer.begin(), answer.end(), '\n'), answer.end());
+		if (answer.size() == 0 || answer.at(0) != 'A')
+		{
+			LogMessage("G command failed: " + answer);
+			return ERR_TTL_COMMAND_FAILED;
+		}
 	}
 
 	return DEVICE_OK;
@@ -761,7 +764,7 @@ int CTTLSwitch::OnRunSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
 		pProp->Get(val);
 		if (val == 1) {
 			// run the sequence
-			return RunSequence();
+			return RunSequence(true);
 		}
 	}
 	return DEVICE_OK;
