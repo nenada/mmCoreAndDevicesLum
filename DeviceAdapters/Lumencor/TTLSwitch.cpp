@@ -764,7 +764,7 @@ int CTTLSwitch::OnRunSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
 		pProp->Get(val);
 		if (val == 1) {
 			// run the sequence
-			return RunSequence(true);
+			return RunSequence(false);
 		}
 	}
 	return DEVICE_OK;
