@@ -73,6 +73,7 @@ public:
    int                                             GetDimension(const char* handle, int dimension, char* name, int nameLength, char* meaning, int meaningLength);
    int                                             GetCoordinate(const char* handle, int dimension, int coordinate, char* name, int nameLength);
    bool                                            IsOpen(const char* handle);
+	bool                                            IsReadOnly(const char* handle);
    int                                             GetPath(const char* handle, char* path, int maxPathLength);
 
 
@@ -88,7 +89,6 @@ protected:
    void                                            cacheReduce() noexcept;
    bool                                            scanDir(const std::string& path, char** listOfDatasets, int maxItems, int maxItemLength, int cpos) noexcept;
 	bool															validateCoordinates(const G2SBigTiffDataset* fs, int coordinates[], int numCoordinates) noexcept;
-   std::string                                     getImageKey(int coordinates[], int numCoordinates) noexcept;
 	bool															getDirectIO() const noexcept;
 	int															getFlushCycle() const noexcept;
 	int															getChunkSize() const noexcept;

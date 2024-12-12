@@ -88,6 +88,7 @@ public:
 	bool															isBigTIFF() const noexcept { return bigTiff; }
 	bool															isInWriteMode() const noexcept { return writemode; }
 	bool															isInReadMode() const noexcept { return !writemode; }
+	bool															isCoordinateSet(int coordinates[], int numCoordinates) const noexcept;
 	bool															isOpen() const noexcept { return !datachunks.empty() && activechunk; }
 
 

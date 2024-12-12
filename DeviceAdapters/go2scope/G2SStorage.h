@@ -54,6 +54,12 @@
 #define ERR_TIFF_OPEN_FAILED			 140506
 #define ERR_TIFF_CACHE_INSERT			 140507
 #define ERR_TIFF_HANDLE_INVALID		 140508
+#define ERR_TIFF_STRING_TOO_LONG		 140509
+#define ERR_TIFF_INVALID_COORDINATE	 140510
+#define ERR_TIFF_DATASET_CLOSED		 140511
+#define ERR_TIFF_DATASET_READONLY	 140512
+#define ERR_TIFF_DELETE_FAILED		 140513
+#define ERR_TIFF_ALLOCATION_FAILED	 140514
 
 //////////////////////////////////////////////////////////////////////////////
 // Cache configuration
@@ -109,24 +115,21 @@ struct G2SStorageEntry
 	 * @param vpath Absoulute path on disk
 	 * @param ndim Number of dimensions
 	 * @param shape Axis sizes
-	 * @param vmeta Dataset metadata
 	 */
-	G2SStorageEntry(const std::string& vpath, int ndim, const int* shape = nullptr, const char* vmeta = nullptr) noexcept : Path(vpath), Dimensions(ndim)
+	G2SStorageEntry(const std::string& vpath, int ndim, const int* shape = nullptr) noexcept : Path(vpath), Dimensions(ndim)
 	{
 		if(shape != nullptr)
 		{
 			for(std::size_t i = 0; i < Dimensions.size(); i++)
 				Dimensions[i].setSize((std::size_t)shape[i]);
 		}
-		if(vmeta != nullptr)
-			Metadata = std::string(vmeta);
 		FileHandle = nullptr;
 	}
 
 	/**
 	 * Close the descriptor
 	 */
-	void close() noexcept { FileHandle = nullptr; Metadata.clear(); ImageMetadata.clear(); ImageData.clear(); }
+	void close() noexcept { FileHandle = nullptr; ImageData.clear(); }
 	/**
 	 * Check if file handle is open
 	 * @return Is file handle open
@@ -139,9 +142,7 @@ struct G2SStorageEntry
 	std::size_t getDimSize() const noexcept { return Dimensions.size(); }
 
 	std::string													Path;												///< Absoulute path on disk
-	std::string													Metadata;										///< Dataset metadata
 	std::vector<G2SDimensionInfo>							Dimensions;										///< Dataset dimensions vector
-	std::map<std::string, std::string>					ImageMetadata;									///< Per-image metadata
-	std::vector<unsigned char>								ImageData;										///< Current image cache
+	std::vector<unsigned char>								ImageData;										///< Current image data
 	void*															FileHandle;										///< File handle
 };

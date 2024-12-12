@@ -51,6 +51,12 @@ G2SBigTiffStorage::G2SBigTiffStorage() : initialized(false)
 	SetErrorText(ERR_TIFF_INVALID_PIXEL_TYPE, "Invalid or unsupported pixel type.");
 	SetErrorText(ERR_TIFF_OPEN_FAILED, "Failed opening TIF file.");
 	SetErrorText(ERR_TIFF_HANDLE_INVALID, "Dataset handle is not valid.");
+	SetErrorText(ERR_TIFF_STRING_TOO_LONG, "Requested string is too long for the provided buffer.");
+	SetErrorText(ERR_TIFF_INVALID_COORDINATE, "Dataset coordinates are valid.");
+	SetErrorText(ERR_TIFF_DATASET_CLOSED, "Operation unavailable - dataset is closed.");
+	SetErrorText(ERR_TIFF_DATASET_READONLY, "Operation unavailable - dataset is read-only.");
+	SetErrorText(ERR_TIFF_DELETE_FAILED, "File / folder delete failed.");
+	SetErrorText(ERR_TIFF_ALLOCATION_FAILED, "Dataset memory allocation failed.");
 
    // create pre-initialization properties                                   
    // ------------------------------------
@@ -140,15 +146,11 @@ int G2SBigTiffStorage::Shutdown()
  */
 int G2SBigTiffStorage::Create(const char* path, const char* name, int numberOfDimensions, const int shape[], MM::StorageDataType pixType, const char* meta, char* handle)
 {
-   if (path == nullptr)
+   if(path == nullptr)
       return ERR_TIFF_INVALID_PATH;
-
-	if (numberOfDimensions < 3)
+	if(numberOfDimensions < 3)
 		return ERR_TIFF_INVALID_DIMENSIONS;
-
-	if (!(pixType == MM::StorageDataType::StorageDataType_GRAY16 || 
-		pixType == MM::StorageDataType::StorageDataType_GRAY8 || 
-		pixType == MM::StorageDataType::StorageDataType_RGB32))
+	if(!(pixType == MM::StorageDataType::StorageDataType_GRAY16 || pixType == MM::StorageDataType::StorageDataType_GRAY8 || pixType == MM::StorageDataType::StorageDataType_RGB32)) 
 		return ERR_TIFF_INVALID_PIXEL_TYPE;
 
    // Check cache size limits
@@ -206,7 +208,7 @@ int G2SBigTiffStorage::Create(const char* path, const char* name, int numberOfDi
 		return ERR_TIFF_OPEN_FAILED;
 	}
    
-   G2SStorageEntry sdesc(fhandle->getPath(), numberOfDimensions, shape, meta);
+   G2SStorageEntry sdesc(fhandle->getPath(), numberOfDimensions, shape);
    sdesc.FileHandle = fhandle;
 
 	// Set dataset UUID / shape / metadata
@@ -229,12 +231,14 @@ int G2SBigTiffStorage::Create(const char* path, const char* name, int numberOfDi
 	if(it.first == cache.end())
 	{
 		delete fhandle;
+		LogMessage("Adding BigTIFF dataset to cache failed. Path: " + dsName.u8string() + ", GUID: " + guid);
 		return ERR_TIFF_CACHE_INSERT;
 	}
    if(!it.second)
 	{
 		// Dataset already exists
 		delete fhandle;
+		LogMessage("Adding BigTIFF dataset to cache failed. Path: " + dsName.u8string() + ", GUID: " + guid);
       return ERR_TIFF_CACHE_INSERT;
 	}
 
@@ -277,7 +281,7 @@ int G2SBigTiffStorage::Load(const char* path, char* handle)
 			}
 		}
 		if(!fnd)
-			return DEVICE_INVALID_INPUT_PARAM;
+			return ERR_TIFF_INVALID_PATH;
 	}
 	else if(std::filesystem::is_regular_file(actpath))
 	{
@@ -308,7 +312,10 @@ int G2SBigTiffStorage::Load(const char* path, char* handle)
 		// Use existing object descriptor
 		fhandle = (G2SBigTiffDataset*)cit->second.FileHandle;
 	if(fhandle == nullptr)
-		return ERR_TIFF_OPEN_FAILED;
+	{
+		LogMessage("Loading BigTIFF dataset failed (" + actpath.u8string() + "). Dataset allocation failed");
+		return ERR_TIFF_ALLOCATION_FAILED;
+	}
 
 	try
 	{
@@ -323,6 +330,7 @@ int G2SBigTiffStorage::Load(const char* path, char* handle)
 	catch(std::exception& e)
 	{
 		delete fhandle;
+		LogMessage("Loading BigTIFF dataset failed (" + actpath.u8string() + "). " + std::string(e.what()));
 		return ERR_TIFF_OPEN_FAILED;
 	}
 	
@@ -331,20 +339,21 @@ int G2SBigTiffStorage::Load(const char* path, char* handle)
 	if(guid.size() > MM::MaxStrLength)
 	{
 		delete fhandle;
-		return DEVICE_INVALID_PROPERTY_LIMTS;
+		return ERR_TIFF_STRING_TOO_LONG;
 	}
 
    // Append dataset storage descriptor to cache
 	if(cit == cache.end())
 	{
 		// Create dataset storage descriptor
-		G2SStorageEntry sdesc(std::filesystem::absolute(actpath).u8string(), (int)fhandle->getDimension(), reinterpret_cast<int*>(&fhandle->getShape()[0]), fhandle->getMetadata().empty() ? nullptr : fhandle->getMetadata().c_str());
+		G2SStorageEntry sdesc(std::filesystem::absolute(actpath).u8string(), (int)fhandle->getDimension(), reinterpret_cast<int*>(&fhandle->getShape()[0]));
 		sdesc.FileHandle = fhandle;
 
 		auto it = cache.insert(std::make_pair(guid, sdesc));
 		if(it.first == cache.end())
 		{
 			delete fhandle;
+			LogMessage("Loading BigTIFF dataset failed (" + actpath.u8string() + "). Dataset cache is full");
 			return DEVICE_OUT_OF_MEMORY;
 		}
 	}
@@ -369,7 +378,7 @@ int G2SBigTiffStorage::GetShape(const char* handle, int shape[])
 	// Obtain dataset descriptor from cache
 	auto it = cache.find(handle);
 	if(it == cache.end())
-		return DEVICE_INVALID_INPUT_PARAM;
+		return ERR_TIFF_HANDLE_INVALID;
 
 	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
 	for(std::size_t i = 0; i < fs->getDimension(); i++)
@@ -391,7 +400,7 @@ int G2SBigTiffStorage::GetDataType(const char* handle, MM::StorageDataType& pixe
 	// Obtain dataset descriptor from cache
 	auto it = cache.find(handle);
 	if(it == cache.end())
-		return DEVICE_INVALID_INPUT_PARAM;
+		return ERR_TIFF_HANDLE_INVALID;
 
 	// Get pixel format
 	if(!it->second.isOpen())
@@ -431,7 +440,7 @@ int G2SBigTiffStorage::Close(const char* handle)
 {
    auto it = cache.find(handle);
    if(it == cache.end())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_HANDLE_INVALID;
    if(it->second.isOpen())
    {
 		auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
@@ -455,12 +464,12 @@ int G2SBigTiffStorage::Delete(char* handle)
       return DEVICE_INVALID_INPUT_PARAM;
    auto it = cache.find(handle);
    if(it == cache.end())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_HANDLE_INVALID;
 
    // Check if the file exists
    auto fp = std::filesystem::u8path(it->second.Path);
    if(!std::filesystem::exists(fp))
-      return DEVICE_NO_PROPERTY_DATA;
+      return ERR_TIFF_INVALID_PATH;
 
    // Close the file handle
    if(it->second.isOpen())
@@ -473,7 +482,7 @@ int G2SBigTiffStorage::Delete(char* handle)
    
    // Delete the file
    if(!std::filesystem::remove(fp))
-      return DEVICE_ERR;
+      return ERR_TIFF_DELETE_FAILED;
 
    // Discard the cache entry
    cache.erase(it);
@@ -498,9 +507,9 @@ int G2SBigTiffStorage::List(const char* path, char** listOfDatasets, int maxItem
       return DEVICE_INVALID_INPUT_PARAM;
    auto dp = std::filesystem::u8path(path);
    if(!std::filesystem::exists(dp) || !std::filesystem::is_directory(dp))
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_INVALID_PATH;
    auto allfnd = scanDir(path, listOfDatasets, maxItems, maxItemLength, 0);
-   return allfnd ? DEVICE_OK : DEVICE_SEQUENCE_TOO_LARGE;
+   return allfnd ? DEVICE_OK : ERR_TIFF_STRING_TOO_LONG;
 }
 
 /**
@@ -521,27 +530,52 @@ int G2SBigTiffStorage::AddImage(const char* handle, int sizeInBytes, unsigned ch
 
 	// Obtain dataset descriptor from cache
 	auto it = cache.find(handle);
-	if (it == cache.end())
-		return DEVICE_INVALID_INPUT_PARAM;
+	if(it == cache.end())
+		return ERR_TIFF_HANDLE_INVALID;
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
 
-	// Validate image dimensions
+	// Validate image dimensions / coordinates
 	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+	if(fs->isInReadMode())
+		return ERR_TIFF_DATASET_READONLY;
 	if(!validateCoordinates(fs, coordinates, numCoordinates))
-		return DEVICE_INVALID_INPUT_PARAM;
+		return ERR_TIFF_INVALID_COORDINATE;
+	if(!fs->isCoordinateSet(coordinates, numCoordinates))
+		return ERR_TIFF_INVALID_COORDINATE;
 
 	// Add image
 	fs->addImage(pixels, sizeInBytes, imageMeta);
-
-	// Add image metadata to the dataset cache
-	auto ikey = getImageKey(coordinates, numCoordinates);
-	it->second.ImageMetadata.insert(std::make_pair(ikey, std::string(imageMeta)));
    return DEVICE_OK;
 }
 
+/**
+ * Append image / write image to file
+ * Image metadata will be stored in cache
+ * @param handle Entry GUID
+ * @param pixels Pixel data buffer
+ * @param sizeInBytes pixel array size
+ * @param imageMeta Image metadata
+ * @return Status code
+ */
 int G2SBigTiffStorage::AppendImage(const char* handle, int sizeInBytes, unsigned char* pixels, const char* imageMeta)
 {
-	// TODO: implement append
-	return DEVICE_NOT_YET_IMPLEMENTED;
+	if(handle == nullptr || pixels == nullptr || sizeInBytes <= 0)
+		return DEVICE_INVALID_INPUT_PARAM;
+
+	// Obtain dataset descriptor from cache
+	auto it = cache.find(handle);
+	if(it == cache.end())
+		return ERR_TIFF_HANDLE_INVALID;
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
+
+	// Append image
+	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+	if(fs->isInReadMode())
+		return ERR_TIFF_DATASET_READONLY;
+	fs->addImage(pixels, sizeInBytes, imageMeta);
+	return DEVICE_OK;
 }
 
 /**
@@ -561,11 +595,15 @@ int G2SBigTiffStorage::GetSummaryMeta(const char* handle, char* meta, int bufSiz
 	// Obtain dataset descriptor from cache
    auto it = cache.find(handle);
    if(it == cache.end())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_HANDLE_INVALID;
+
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
 
 	// Copy metadata string
-	strncpy(meta, it->second.Metadata.c_str(), bufSize);
-   return it->second.Metadata.size() > (std::size_t)bufSize ? DEVICE_SEQUENCE_TOO_LARGE : DEVICE_OK;
+	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+	strncpy(meta, fs->getMetadata().c_str(), bufSize);
+   return fs->getMetadata().size() > (std::size_t)bufSize ? ERR_TIFF_STRING_TOO_LONG : DEVICE_OK;
 }
 
 /**
@@ -587,40 +625,28 @@ int G2SBigTiffStorage::GetImageMeta(const char* handle, int coordinates[], int n
 	// Obtain dataset descriptor from cache
    auto it = cache.find(handle);
    if(it == cache.end())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_HANDLE_INVALID;
 
 	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
 	if(!validateCoordinates(fs, coordinates, numCoordinates))
-		return DEVICE_INVALID_INPUT_PARAM;
+		return ERR_TIFF_INVALID_COORDINATE;
    
-	// Check the dataset cache first
-	auto ikey = getImageKey(coordinates, numCoordinates);
-   auto iit = it->second.ImageMetadata.find(ikey);
-   if(iit == it->second.ImageMetadata.end())
-	{
-      // Obtain metadata from the file stream
-		if(!it->second.isOpen())
-			return ERR_TIFF_STREAM_UNAVAILABLE;
+	// Obtain metadata from the file stream
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
 
-		// Copy coordinates without including the width and height
-		std::vector<std::uint32_t> coords(fs->getDimension() - 2);
-		for(int i = 0; i < coords.size(); i++)
-		{
-			if(i >= numCoordinates)
-				break;
-			coords[i] = coordinates[i];
-		}
-
-		auto fmeta = fs->getImageMetadata(coords);
-		if(!fmeta.empty())
-			strncpy(meta, fmeta.c_str(), bufSize);
-	}
-	else
+	// Copy coordinates without including the width and height
+	std::vector<std::uint32_t> coords(fs->getDimension() - 2);
+	for(int i = 0; i < coords.size(); i++)
 	{
-		// Copy metadata from cache
-		if(!iit->second.empty())
-			strncpy(meta, iit->second.c_str(), bufSize);
+		if(i >= numCoordinates)
+			break;
+		coords[i] = coordinates[i];
 	}
+
+	auto fmeta = fs->getImageMetadata(coords);
+	if(!fmeta.empty())
+		strncpy(meta, fmeta.c_str(), bufSize);
    return DEVICE_OK;
 }
 
@@ -677,9 +703,9 @@ int G2SBigTiffStorage::ConfigureDimension(const char* handle, int dimension, con
       return DEVICE_INVALID_INPUT_PARAM;
    auto it = cache.find(handle);
    if(it == cache.end())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_HANDLE_INVALID;
    if((std::size_t)dimension >= it->second.getDimSize())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_INVALID_DIMENSIONS;
    it->second.Dimensions[dimension].Name = std::string(name);
    it->second.Dimensions[dimension].Metadata = std::string(meaning);
    return DEVICE_OK;
@@ -699,11 +725,11 @@ int G2SBigTiffStorage::ConfigureCoordinate(const char* handle, int dimension, in
       return DEVICE_INVALID_INPUT_PARAM;
    auto it = cache.find(handle);
    if(it == cache.end())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_HANDLE_INVALID;
    if((std::size_t)dimension >= it->second.getDimSize())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_INVALID_DIMENSIONS;
    if((std::size_t)coordinate >= it->second.Dimensions[dimension].getSize())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_INVALID_COORDINATE;
    it->second.Dimensions[dimension].Coordinates[coordinate] = std::string(name);
    return DEVICE_OK;
 }
@@ -720,7 +746,7 @@ int G2SBigTiffStorage::GetNumberOfDimensions(const char* handle, int& numDimensi
       return DEVICE_INVALID_INPUT_PARAM;
    auto it = cache.find(handle);
    if(it == cache.end())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_HANDLE_INVALID;
    numDimensions = (int)it->second.getDimSize();
    return DEVICE_OK;
 }
@@ -736,13 +762,13 @@ int G2SBigTiffStorage::GetDimension(const char* handle, int dimension, char* nam
       return DEVICE_INVALID_INPUT_PARAM;
    auto it = cache.find(handle);
    if(it == cache.end())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_HANDLE_INVALID;
    if((std::size_t)dimension >= it->second.getDimSize())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_INVALID_DIMENSIONS;
    if(it->second.Dimensions[dimension].Name.size() > (std::size_t)nameLength)
-      return DEVICE_INVALID_PROPERTY_LIMTS;
+      return ERR_TIFF_STRING_TOO_LONG;
    if(it->second.Dimensions[dimension].Metadata.size() > (std::size_t)meaningLength)
-      return DEVICE_INVALID_PROPERTY_LIMTS;
+      return ERR_TIFF_STRING_TOO_LONG;
 	strncpy(name, it->second.Dimensions[dimension].Name.c_str(), nameLength);
 	strncpy(meaning, it->second.Dimensions[dimension].Metadata.c_str(), meaningLength);
    return DEVICE_OK;
@@ -759,35 +785,68 @@ int G2SBigTiffStorage::GetCoordinate(const char* handle, int dimension, int coor
       return DEVICE_INVALID_INPUT_PARAM;
    auto it = cache.find(handle);
    if(it == cache.end())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_HANDLE_INVALID;
    if((std::size_t)dimension >= it->second.getDimSize())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_INVALID_DIMENSIONS;
    if((std::size_t)coordinate >= it->second.Dimensions[dimension].getSize())
-      return DEVICE_INVALID_INPUT_PARAM;
+      return ERR_TIFF_INVALID_COORDINATE;
    if(it->second.Dimensions[dimension].Coordinates[coordinate].size() > (std::size_t)nameLength)
-      return DEVICE_INVALID_PROPERTY_LIMTS;
+      return ERR_TIFF_STRING_TOO_LONG;
 	strncpy(name, it->second.Dimensions[dimension].Coordinates[coordinate].c_str(), nameLength);
    return DEVICE_OK;
 }
 
 /**
- * Returns true if images can be added to the dataset
+ * Check if dataset is open
+ * If the dataset doesn't exist, or the GUID is invalid this method will return false
+ * @param handle Entry GUID
+ * @return true if dataset is open
  */
 bool G2SBigTiffStorage::IsOpen(const char* handle)
 {
-	// TODO: is this the correct way to check if the dataset is accepting images?
-	auto it = cache.find(handle);
-	if (it == cache.end())
+	if(handle == nullptr)
 		return false;
-
-	return true;
+	auto it = cache.find(handle);
+	if(it == cache.end())
+		return false;	
+	return it->second.isOpen();
 }
 
+/**
+ * Check if dataset is read-only
+ * If the dataset doesn't exist, or the GUID is invalid this method will return true
+ * @param handle Entry GUID
+ * @return true if images can't be added to the dataset
+ */
+bool G2SBigTiffStorage::IsReadOnly(const char* handle)
+{
+	if(handle == nullptr)
+		return true;
+	auto it = cache.find(handle);
+	if(it == cache.end())
+		return true;
+	if(!it->second.isOpen())
+		return true;
+	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+	return fs->isInReadMode();
+}
+
+/**
+ * Get dataset path
+ * @param handle Entry GUID
+ * @param path Dataset path [out]
+ * @param maxPathLength Max path length
+ * @return Status code
+ */
 int G2SBigTiffStorage::GetPath(const char* handle, char* path, int maxPathLength)
 {
+	if(handle == nullptr || maxPathLength <= 0)
+		return DEVICE_INVALID_INPUT_PARAM;
 	auto it = cache.find(handle);
-	if (it == cache.end())
+	if(it == cache.end())
 		return ERR_TIFF_HANDLE_INVALID;
+	if(it->second.Path.size() > (std::size_t)maxPathLength)
+		return ERR_TIFF_STRING_TOO_LONG;
 	strncpy(path, it->second.Path.c_str(), it->second.Path.size());
 	return DEVICE_OK;
 }
@@ -883,20 +942,6 @@ bool G2SBigTiffStorage::validateCoordinates(const G2SBigTiffDataset* fs, int coo
 			return false;
 	}
 	return true;
-}
-
-/**
- * Calculate image key from the specified image coordinates
- * @param coordinates Image coordinates
- * @param numCoordinates Coordinate count
- * @return Image key (for image cache indices)
- */
-std::string G2SBigTiffStorage::getImageKey(int coordinates[], int numCoordinates) noexcept
-{
-   std::stringstream ss;
-   for(int i = 0; i < numCoordinates; i++)
-      ss << (i == 0 ? "" : ".") << coordinates[i];
-   return ss.str();
 }
 
 /**

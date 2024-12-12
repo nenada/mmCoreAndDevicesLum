@@ -513,6 +513,27 @@ std::vector<unsigned char> G2SBigTiffDataset::getImage(const std::vector<std::ui
 }
 
 /**
+ * Check if image for the specified coordinates is already set
+ * @param coordinates Coordinates list
+ * @param numCoordinates Coordinates count
+ * @return Does image at the specified coordinates exists
+ */
+bool G2SBigTiffDataset::isCoordinateSet(int coordinates[], int numCoordinates) const noexcept
+{
+	std::uint32_t imgind = 0;
+	for(int i = 0; i < numCoordinates; i++)
+	{
+		if(i >= shape.size() - 2)
+			break;
+		std::uint32_t sum = 1;
+		for(int j = i + 1; j < shape.size() - 2; j++)
+			sum *= shape[j];
+		imgind += sum * coordinates[i];
+	}
+	return imgind < imgcounter;
+}
+
+/**
  * Change active data chunk
  * This method is used only for reading data
  * Dataset properties from the new data chunk will be validated
