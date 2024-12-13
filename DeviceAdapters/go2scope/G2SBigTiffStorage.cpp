@@ -541,8 +541,10 @@ int G2SBigTiffStorage::AddImage(const char* handle, int sizeInBytes, unsigned ch
 		return ERR_TIFF_DATASET_READONLY;
 	if(!validateCoordinates(fs, coordinates, numCoordinates))
 		return ERR_TIFF_INVALID_COORDINATE;
-	if(!fs->isCoordinateSet(coordinates, numCoordinates))
-		return ERR_TIFF_INVALID_COORDINATE;
+	// TODO: this does not work
+	// commented out until fixed
+	// if(!fs->isCoordinateSet(coordinates, numCoordinates))
+		// return ERR_TIFF_INVALID_COORDINATE;
 
 	// Add image
 	fs->addImage(pixels, sizeInBytes, imageMeta);
