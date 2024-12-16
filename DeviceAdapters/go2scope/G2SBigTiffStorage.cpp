@@ -541,10 +541,8 @@ int G2SBigTiffStorage::AddImage(const char* handle, int sizeInBytes, unsigned ch
 		return ERR_TIFF_DATASET_READONLY;
 	if(!validateCoordinates(fs, coordinates, numCoordinates))
 		return ERR_TIFF_INVALID_COORDINATE;
-	// TODO: this does not work
-	// commented out until fixed
-	// if(!fs->isCoordinateSet(coordinates, numCoordinates))
-		// return ERR_TIFF_INVALID_COORDINATE;
+	if(fs->isCoordinateSet(coordinates, numCoordinates))
+		return ERR_TIFF_INVALID_COORDINATE;
 
 	// Add image
 	fs->addImage(pixels, sizeInBytes, imageMeta);
@@ -851,6 +849,63 @@ int G2SBigTiffStorage::GetPath(const char* handle, char* path, int maxPathLength
 		return ERR_TIFF_STRING_TOO_LONG;
 	strncpy(path, it->second.Path.c_str(), it->second.Path.size());
 	return DEVICE_OK;
+}
+
+/**
+ * Check if there is a valid dataset on the selected path
+ * @param path Dataset path
+ * @return Path is a valid dataset
+ */
+bool G2SBigTiffStorage::CanLoad(const char* path)
+{
+	if(path == nullptr)
+		return false;
+	std::filesystem::path xpath = std::filesystem::u8path(path);
+	if(!std::filesystem::exists(xpath))
+		return false;
+
+	if(std::filesystem::is_directory(xpath))
+	{
+		// If directory is selected check if it's not empty and if the name ends with .g2s
+		auto dname = xpath.filename().u8string();
+		if(dname.find(".g2s") != dname.size() - 4)
+			return false;
+		
+		// Check for valid files
+		int validfiles = 0;
+		for(const auto& entry : std::filesystem::directory_iterator(xpath))
+		{
+			// Skip auto folder paths
+			auto fname = entry.path().filename().u8string();
+			if(fname == "." || fname == "..")
+				continue;
+
+			// Skip folders
+			if(std::filesystem::is_directory(entry))
+				continue;
+
+			// Skip unsupported file formats
+			auto fext = entry.path().extension().u8string();
+			if(fext.size() == 0)
+				continue;
+			if(fext[0] == '.')
+				fext = fext.substr(1);
+			std::transform(fext.begin(), fext.end(), fext.begin(), [](char c) { return (char)tolower(c); });
+			if(fext != "tiff" && fext != "tif" && fext != "g2s.tiff" && fext != "g2s.tif")
+				continue;
+
+			// We found a supported file type -> Increment the counter
+			validfiles++;
+		}
+		return validfiles > 0;
+	}
+	else
+	{
+		// If file is selected check file extension
+		auto fext = xpath.extension().u8string();
+		std::transform(fext.begin(), fext.end(), fext.begin(), [](char c) { return (char)tolower(c); });
+		return fext == "tiff" || fext == "tif" || fext == "g2s.tiff" || fext == "g2s.tif";
+	}
 }
 
 /**
