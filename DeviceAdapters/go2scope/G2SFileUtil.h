@@ -26,6 +26,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <cstdint>
+#include <vector>
+#include <string>
 
 //===============================================================================================================================
 // Driver version
@@ -47,3 +49,4 @@
 //===============================================================================================================================
 void																writeInt(unsigned char* buff, std::uint8_t len, std::uint64_t val) noexcept;
 std::uint64_t													readInt(const unsigned char* buff, std::uint8_t len) noexcept;
+std::vector<std::string>									splitLineCSV(const std::string& line) noexcept;

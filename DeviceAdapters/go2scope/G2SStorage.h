@@ -74,36 +74,6 @@ static const char* g_AcqZarrStorage = "AcquireZarrStorage";
 static const char* g_BigTiffStorage = "G2SBigTiffStorage";
 
 /**
- * Dataset dimension descriptor
- * @author Miloš Jovanović <milos@tehnocad.rs>
- * @version 1.0
- */
-struct G2SDimensionInfo
-{
-	/**
-	 * Default initializer
-	 * @param vname Axis name
-	 * @param ndim Axis size
-	 */
-	G2SDimensionInfo(int ndim = 0) noexcept : Name(""), Coordinates(ndim) { }
-
-	/**
-	 * Set dimensions size
-	 * @param sz Number of axis coordinates
-	 */
-	void setSize(std::size_t sz) noexcept { Coordinates.resize(sz); }
-	/**
-	 * Get dimension size
-	 * @return Number of axis coordinates
-	 */
-	std::size_t getSize() const noexcept { return Coordinates.size(); }
-
-	std::string													Name;												///< Axis name
-	std::string													Metadata;										///< Axis metadata
-	std::vector<std::string>								Coordinates;									///< Axis coordinates
-};
-
-/**
  * Storage entry descriptor
  * @author Miloš Jovanović <milos@tehnocad.rs>
  * @version 1.0
@@ -116,15 +86,7 @@ struct G2SStorageEntry
 	 * @param ndim Number of dimensions
 	 * @param shape Axis sizes
 	 */
-	G2SStorageEntry(const std::string& vpath, int ndim, const int* shape = nullptr) noexcept : Path(vpath), Dimensions(ndim)
-	{
-		if(shape != nullptr)
-		{
-			for(std::size_t i = 0; i < Dimensions.size(); i++)
-				Dimensions[i].setSize((std::size_t)shape[i]);
-		}
-		FileHandle = nullptr;
-	}
+	G2SStorageEntry(const std::string& vpath, int ndim) noexcept : Path(vpath), FileHandle(nullptr) { }
 
 	/**
 	 * Close the descriptor
@@ -135,14 +97,8 @@ struct G2SStorageEntry
 	 * @return Is file handle open
 	 */
 	bool isOpen() noexcept { return FileHandle != nullptr; }
-	/**
-	 * Get number of dimensions
-	 * @return Number of dataset dimensions
-	 */
-	std::size_t getDimSize() const noexcept { return Dimensions.size(); }
 
 	std::string													Path;												///< Absoulute path on disk
-	std::vector<G2SDimensionInfo>							Dimensions;										///< Dataset dimensions vector
 	std::vector<unsigned char>								ImageData;										///< Current image data
 	void*															FileHandle;										///< File handle
 };

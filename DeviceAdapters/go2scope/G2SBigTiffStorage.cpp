@@ -208,7 +208,7 @@ int G2SBigTiffStorage::Create(const char* path, const char* name, int numberOfDi
 		return ERR_TIFF_OPEN_FAILED;
 	}
    
-   G2SStorageEntry sdesc(fhandle->getPath(), numberOfDimensions, shape);
+   G2SStorageEntry sdesc(fhandle->getPath(), numberOfDimensions);
    sdesc.FileHandle = fhandle;
 
 	// Set dataset UUID / shape / metadata
@@ -346,7 +346,7 @@ int G2SBigTiffStorage::Load(const char* path, char* handle)
 	if(cit == cache.end())
 	{
 		// Create dataset storage descriptor
-		G2SStorageEntry sdesc(std::filesystem::absolute(actpath).u8string(), (int)fhandle->getDimension(), reinterpret_cast<int*>(&fhandle->getShape()[0]));
+		G2SStorageEntry sdesc(std::filesystem::absolute(actpath).u8string(), (int)fhandle->getDimension());
 		sdesc.FileHandle = fhandle;
 
 		auto it = cache.insert(std::make_pair(guid, sdesc));
@@ -704,10 +704,15 @@ int G2SBigTiffStorage::ConfigureDimension(const char* handle, int dimension, con
    auto it = cache.find(handle);
    if(it == cache.end())
       return ERR_TIFF_HANDLE_INVALID;
-   if((std::size_t)dimension >= it->second.getDimSize())
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
+	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+	if(fs->isInReadMode())
+		return ERR_TIFF_DATASET_READONLY;
+
+   if((std::size_t)dimension >= fs->getDimension())
       return ERR_TIFF_INVALID_DIMENSIONS;
-   it->second.Dimensions[dimension].Name = std::string(name);
-   it->second.Dimensions[dimension].Metadata = std::string(meaning);
+	fs->configureAxis(dimension, std::string(name), std::string(meaning));
    return DEVICE_OK;
 }
 
@@ -726,11 +731,17 @@ int G2SBigTiffStorage::ConfigureCoordinate(const char* handle, int dimension, in
    auto it = cache.find(handle);
    if(it == cache.end())
       return ERR_TIFF_HANDLE_INVALID;
-   if((std::size_t)dimension >= it->second.getDimSize())
-      return ERR_TIFF_INVALID_DIMENSIONS;
-   if((std::size_t)coordinate >= it->second.Dimensions[dimension].getSize())
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
+	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+	if(fs->isInReadMode())
+		return ERR_TIFF_DATASET_READONLY;
+
+	if(dimension < 0 || (std::size_t)dimension >= fs->getDimension())
+		return ERR_TIFF_INVALID_DIMENSIONS;
+   if(coordinate < 0 || (std::size_t)coordinate >= fs->getShape()[dimension])
       return ERR_TIFF_INVALID_COORDINATE;
-   it->second.Dimensions[dimension].Coordinates[coordinate] = std::string(name);
+   fs->configureCoordinate(dimension, coordinate, std::string(name));
    return DEVICE_OK;
 }
 
@@ -747,7 +758,11 @@ int G2SBigTiffStorage::GetNumberOfDimensions(const char* handle, int& numDimensi
    auto it = cache.find(handle);
    if(it == cache.end())
       return ERR_TIFF_HANDLE_INVALID;
-   numDimensions = (int)it->second.getDimSize();
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
+
+	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+   numDimensions = (int)fs->getDimension();
    return DEVICE_OK;
 }
 
@@ -763,14 +778,20 @@ int G2SBigTiffStorage::GetDimension(const char* handle, int dimension, char* nam
    auto it = cache.find(handle);
    if(it == cache.end())
       return ERR_TIFF_HANDLE_INVALID;
-   if((std::size_t)dimension >= it->second.getDimSize())
-      return ERR_TIFF_INVALID_DIMENSIONS;
-   if(it->second.Dimensions[dimension].Name.size() > (std::size_t)nameLength)
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
+	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+
+	if(dimension < 0 || (std::size_t)dimension >= fs->getDimension())
+		return ERR_TIFF_INVALID_DIMENSIONS;
+
+	const auto& axinf = fs->getAxisInfo((std::uint32_t)dimension);
+   if(axinf.Name.size() > (std::size_t)nameLength)
       return ERR_TIFF_STRING_TOO_LONG;
-   if(it->second.Dimensions[dimension].Metadata.size() > (std::size_t)meaningLength)
+   if(axinf.Description.size() > (std::size_t)meaningLength)
       return ERR_TIFF_STRING_TOO_LONG;
-	strncpy(name, it->second.Dimensions[dimension].Name.c_str(), nameLength);
-	strncpy(meaning, it->second.Dimensions[dimension].Metadata.c_str(), meaningLength);
+	strncpy(name, axinf.Name.c_str(), nameLength);
+	strncpy(meaning, axinf.Description.c_str(), meaningLength);
    return DEVICE_OK;
 }
 
@@ -786,13 +807,21 @@ int G2SBigTiffStorage::GetCoordinate(const char* handle, int dimension, int coor
    auto it = cache.find(handle);
    if(it == cache.end())
       return ERR_TIFF_HANDLE_INVALID;
-   if((std::size_t)dimension >= it->second.getDimSize())
-      return ERR_TIFF_INVALID_DIMENSIONS;
-   if((std::size_t)coordinate >= it->second.Dimensions[dimension].getSize())
-      return ERR_TIFF_INVALID_COORDINATE;
-   if(it->second.Dimensions[dimension].Coordinates[coordinate].size() > (std::size_t)nameLength)
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
+	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+
+	if(dimension < 0 || (std::size_t)dimension >= fs->getDimension())
+		return ERR_TIFF_INVALID_DIMENSIONS;
+	if(coordinate < 0 || (std::size_t)coordinate >= fs->getShape()[dimension])
+		return ERR_TIFF_INVALID_COORDINATE;
+
+	const auto& axinf = fs->getAxisInfo((std::uint32_t)dimension);
+	if((std::size_t)coordinate >= axinf.Coordinates.size())
+		return ERR_TIFF_INVALID_COORDINATE;
+	if(axinf.Coordinates[coordinate].size() > (std::size_t)nameLength)
       return ERR_TIFF_STRING_TOO_LONG;
-	strncpy(name, it->second.Dimensions[dimension].Coordinates[coordinate].c_str(), nameLength);
+	strncpy(name, axinf.Coordinates[coordinate].c_str(), nameLength);
    return DEVICE_OK;
 }
 
