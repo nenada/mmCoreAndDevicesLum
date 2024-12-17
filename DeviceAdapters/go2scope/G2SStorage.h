@@ -69,7 +69,6 @@
 #define CACHE_HARD_LIMIT				0
 
 static const char* g_Go2Scope = "Go2Scope";
-static const char* g_MMV1Storage = "MMV1Storage";
 static const char* g_AcqZarrStorage = "AcquireZarrStorage";
 static const char* g_BigTiffStorage = "G2SBigTiffStorage";
 
