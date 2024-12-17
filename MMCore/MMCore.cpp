@@ -7101,6 +7101,7 @@ void CMMCore::InitializeErrorMessages()
    errorText_[MMERR_CreatePeripheralFailed] = "Hub failed to create specified peripheral device.";
    errorText_[MMERR_BadAffineTransform] = "Bad affine transform.  Affine transforms need to have 6 numbers; 2 rows of 3 column.";
    errorText_[MMERR_StorageNotAvailable] = "Storage not loaded or initialized.";
+   errorText_[MMERR_StorageImageNotAvailable] = "Image not available at specified coordinates.";
 }
 
 void CMMCore::CreateCoreProperties()
@@ -8041,6 +8042,11 @@ STORAGEIMGOUT CMMCore::getImage(const char* handle, const std::vector<long>& coo
       mm::DeviceModuleLockGuard guard(storage);
       std::vector<int> coords(coordinates.begin(), coordinates.end());
       const unsigned char* img = storage->GetImage(handle, coords);
+      if (!img)
+      {
+         logError("CMMCore::getImage()", getCoreErrorText(MMERR_StorageImageNotAvailable).c_str());
+         throw CMMError(getCoreErrorText(MMERR_StorageImageNotAvailable).c_str(), MMERR_StorageImageNotAvailable);
+      }
       return const_cast<unsigned char*>(img);
    }
    throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);

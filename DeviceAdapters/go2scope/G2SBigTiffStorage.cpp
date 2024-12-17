@@ -661,32 +661,39 @@ int G2SBigTiffStorage::GetImageMeta(const char* handle, int coordinates[], int n
  */
 const unsigned char* G2SBigTiffStorage::GetImage(const char* handle, int coordinates[], int numCoordinates)
 {
-	if(handle == nullptr || numCoordinates <= 0)
-		return nullptr;
+	try {
+		if (handle == nullptr || numCoordinates <= 0)
+			return nullptr;
 
-	// Obtain dataset descriptor from cache
-	auto it = cache.find(handle);
-	if(it == cache.end())
-		return nullptr;
-	
-	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
-	if(!validateCoordinates(fs, coordinates, numCoordinates))
-		return nullptr;
-	
-	if(!it->second.isOpen())
-		return nullptr;
+		// Obtain dataset descriptor from cache
+		auto it = cache.find(handle);
+		if (it == cache.end())
+			return nullptr;
 
-	// Copy coordinates without including the width and height
-	std::vector<std::uint32_t> coords(fs->getDimension() - 2);
-	for(int i = 0; i < coords.size(); i++)
-	{
-		if(i >= numCoordinates)
-			break;
-		coords[i] = coordinates[i];
+		auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+		if (!validateCoordinates(fs, coordinates, numCoordinates))
+			return nullptr;
+
+		if (!it->second.isOpen())
+			return nullptr;
+
+		// Copy coordinates without including the width and height
+		std::vector<std::uint32_t> coords(fs->getDimension() - 2);
+		for (int i = 0; i < coords.size(); i++)
+		{
+			if (i >= numCoordinates)
+				break;
+			coords[i] = coordinates[i];
+		}
+
+		it->second.ImageData = fs->getImage(coords);
+		return &it->second.ImageData[0];
 	}
-	
-	it->second.ImageData = fs->getImage(coords);
-   return &it->second.ImageData[0];
+	catch (std::runtime_error& e)
+	{
+		LogMessage("GetImage error: " +std::string(e.what()));
+		return nullptr;
+	}
 }
 
 /**
