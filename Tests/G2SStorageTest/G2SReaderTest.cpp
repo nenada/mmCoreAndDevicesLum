@@ -32,47 +32,8 @@
 #include <chrono>
 #include "MMCore.h"
 
-/**
- * Calculate image coordinates for optimized access
- * @param ind Image index
- * @param shape Dataset shape
- * @param coords Image coordinates [out]
- */
-std::vector<long> calcCoordsOptimized(long ind, const std::vector<long>& shape) 
-{
-	std::vector<long> ret(shape.size());
-	int fx = 0;
-	for(int j = 0; j < (int)shape.size() - 2; j++) {
-		int sum = 1;
-		for(int k = j + 1; k < (int)shape.size() - 2; k++)
-			sum *= shape[k];
-		int ix = (ind - fx) / sum;
-		ret[j] = ix;
-		fx += ix * sum;
-	}
-	return ret;
-}
-
-/**
- * Calculate image coordinates for random access
- * @param ind Image index
- * @param shape Dataset shape
- * @param coords Image coordinates [out]
- */
-std::vector<long> calcCoordsRandom(long ind, const std::vector<long>& shape) 
-{
-	std::vector<long> ret(shape.size());
-	int fx = 0;
-	for(int j = (int)shape.size() - 3; j >= 0; j--) {
-		int sum = 1;
-		for(int k = 0; k < j; k++)
-			sum *= shape[k];
-		int ix = (ind - fx) / sum;
-		ret[j] = ix;
-		fx += ix * sum;
-	}
-	return ret;
-}
+extern std::vector<long> calcCoordsOptimized(long ind, const std::vector<long>& shape);
+extern std::vector<long> calcCoordsRandom(long ind, const std::vector<long>& shape);
 
 /**
  * Storage read test

@@ -46,9 +46,6 @@ extern std::string generateImageMeta(CMMCore& core, int imgind);
 void testWritter(CMMCore& core, const std::string& path, const std::string& name, int c, int t, int p)
 {
 	std::cout << std::endl << "Starting G2SStorage driver writer test" << std::endl;
-
-	// Take one image to "warm up" the camera and get actual image dimensions
-	core.snapImage();
 	int w = (int)core.getImageWidth();
 	int h = (int)core.getImageHeight();
 	int imgSize = 2 * w * h;

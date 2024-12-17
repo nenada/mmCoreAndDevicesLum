@@ -826,6 +826,26 @@ int G2SBigTiffStorage::GetCoordinate(const char* handle, int dimension, int coor
 }
 
 /**
+ * Get number of available images
+ * @param handle Entry GUID
+ * @param imgcount Image count [out]
+ * @return Status code
+ */
+int G2SBigTiffStorage::GetImageCount(const char* handle, int& imgcount)
+{
+	if(handle == nullptr)
+		return DEVICE_INVALID_INPUT_PARAM;
+	auto it = cache.find(handle);
+	if(it == cache.end())
+		return ERR_TIFF_HANDLE_INVALID;
+	if(!it->second.isOpen())
+		return ERR_TIFF_DATASET_CLOSED;
+	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
+	imgcount = (int)fs->getImageCount();
+	return DEVICE_OK;
+}
+
+/**
  * Check if dataset is open
  * If the dataset doesn't exist, or the GUID is invalid this method will return false
  * @param handle Entry GUID

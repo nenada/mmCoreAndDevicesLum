@@ -32,7 +32,9 @@
 #define TEST_WRITE				1
 #define TEST_READ					2
 #define TEST_ACQ					3
-#define TEST_VER					"1.0.0"
+#define TEST_INTEGRITY			4
+#define TEST_INCOMPLETE			5
+#define TEST_VER					"1.1.0"
 #define ENGINE_BIGTIFF			1
 #define ENGINE_ZARR				2
 #define CAMERA_DEMO				1
@@ -41,6 +43,8 @@
 extern void testWritter(CMMCore& core, const std::string& path, const std::string& name, int c, int t, int p);
 extern void testReader(CMMCore& core, const std::string& path, const std::string& name, bool optimized, bool printmeta);
 extern void testAcquisition(CMMCore& core, const std::string& path, const std::string& name, int c, int t, int p);
+extern void testIntegrity(CMMCore& core, const std::string& path, const std::string& name, int c, int t, int p);
+extern void testIncompleteness(CMMCore& core, const std::string& path, const std::string& name, int c, int t, int p);
 
 /**
  * Application entry point
@@ -64,6 +68,7 @@ int main(int argc, char** argv)
 	bool printmeta = false;
 	bool optimalaccess = false;
 	std::string savelocation = ".";
+	std::string testname = "";
 
 	// Parse input arguments
 	if(argc < 2)
@@ -91,6 +96,12 @@ int main(int argc, char** argv)
 		
 		std::cout << "For acquisition test type:" << std::endl;
 		std::cout << "G2SStorageTest acq [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [chunk_size] [flush_cycle]" << std::endl << std::endl;
+
+		std::cout << "For integrity test type:" << std::endl;
+		std::cout << "G2SStorageTest integrity [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [chunk_size] [flush_cycle]" << std::endl << std::endl;
+
+		std::cout << "For incompleteness test type:" << std::endl;
+		std::cout << "G2SStorageTest incomplete [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [chunk_size] [flush_cycle]" << std::endl << std::endl;
 		
 		std::cout << "Available storage engines: zarr, bigtiff (default)" << std::endl;
 		std::cout << "Available cameras: demo, hamamatsu" << std::endl;
@@ -108,8 +119,11 @@ int main(int argc, char** argv)
 		std::cout << "Default dataset name is test-[storage_engine]" << std::endl;
 		return 0;
 	}
-	else if(carg == "read" || carg == "write" || carg == "acq")
-		selectedTest = carg == "write" ? TEST_WRITE : (carg == "read" ? TEST_READ : TEST_ACQ);
+	else if(carg == "read" || carg == "write" || carg == "acq" || carg == "integrity" || carg == "incomplete")
+	{
+		selectedTest = carg == "write" ? TEST_WRITE : (carg == "read" ? TEST_READ : (carg == "acq" ? TEST_ACQ : (carg == "integrity" ? TEST_INTEGRITY : TEST_INCOMPLETE)));
+		testname = carg.substr(0, 3);
+	}
 	else
 	{
 		std::cout << "Invalid test suite selected. To see program options type G2SStorageTest -help" << std::endl;
@@ -129,7 +143,7 @@ int main(int argc, char** argv)
 			return 2;
 		}
 	}
-	std::string datasetname = "test-" + std::string(storageEngine == ENGINE_BIGTIFF ? "bigtiff" : "zarr");
+	std::string datasetname = "test-" + std::string(storageEngine == ENGINE_BIGTIFF ? "bigtiff" : "zarr") + "-" + testname;
 
 	// Obtain save location
 	if(argc > 3)
@@ -263,6 +277,9 @@ int main(int argc, char** argv)
 				core.setROI(1032, 0, 2368, 2368);
 				core.setExposure(5.0);
 			}
+			
+			// Take one image to "warm up" the camera and get actual image dimensions
+			core.snapImage();
 		}
 
 		// Set storage engine properties
@@ -281,6 +298,10 @@ int main(int argc, char** argv)
 			testReader(core, savelocation, datasetname, optimalaccess, printmeta);
 		else if(selectedTest == TEST_ACQ)
 			testAcquisition(core, savelocation, datasetname, channels, timepoints, positions);
+		else if(selectedTest == TEST_INTEGRITY)
+			testIntegrity(core, savelocation, datasetname, channels, timepoints, positions);
+		else if(selectedTest == TEST_INCOMPLETE)
+			testIncompleteness(core, savelocation, datasetname, channels, timepoints, positions);
 		else
 			std::cout << "Invalid test suite selected. Exiting..." << std::endl;
 

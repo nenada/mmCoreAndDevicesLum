@@ -434,7 +434,7 @@ void G2SBigTiffDataset::configureCoordinate(int dim, int coord, const std::strin
 {
 	if(!writemode)
 		return;
-	if(dim < 0 || (std::size_t)dim >= axisinfo.size())
+	if(dim < 0 || (std::size_t)dim >= axisinfo.size() - 2)
 		return;
 	if(coord < 0 || (std::size_t)coord >= axisinfo[dim].Coordinates.size())
 		return;
@@ -790,7 +790,7 @@ void G2SBigTiffDataset::resetAxisInfo() noexcept
 {
 	axisinfo.clear();
 	axisinfo.resize(shape.size());
-	for(std::size_t i = 0; i < shape.size(); i++)
+	for(std::size_t i = 0; i < shape.size() - 2; i++)
 		axisinfo[i].setSize((std::size_t)shape[i]);
 }
 
@@ -806,7 +806,7 @@ void G2SBigTiffDataset::parseAxisInfo()
 		return;
 
 	// Load file content
-	std::fstream fs(fpath.u8string(), std::ios::out | std::ios::trunc);
+	std::fstream fs(fpath.u8string(), std::ios::in);
 	if(!fs.is_open())
 		throw std::runtime_error("Unable to load axis info. Opening axis info file failed");
 
