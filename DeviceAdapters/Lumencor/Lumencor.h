@@ -53,7 +53,7 @@ static const char* g_Prop_ModuleVersion = "ModuleVersion";
 static const char* g_prop_ChannelSequence = "ChannelSequence";
 static const char* g_prop_RunSequence = "RunSequence";
 
-#define LUMENCOR_DEV_VERSION "1.0.3"
+#define LUMENCOR_DEV_VERSION "1.0.4"
 
 class LightEngineAPI;
 

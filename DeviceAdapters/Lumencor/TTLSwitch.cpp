@@ -366,7 +366,7 @@ int CTTLSwitch::LoadChannelSequence(const std::vector<int>& sequence)
 	for (size_t i = 0; i < sequence.size(); i++)
 	{
 		auto cInfo = channelLookup[channels[i]];
-		os << cInfo.channelId << " " << (int)nearbyint(cInfo.exposureMs * 1000);
+		os << cInfo.ttlId << " " << (int)nearbyint(cInfo.exposureMs * 1000);
 		if (i < sequence.size() - 1)
 			os << " ";
 	}
@@ -401,7 +401,7 @@ int CTTLSwitch::LoadChannelSequence(const std::vector<std::string>& sequence)
 	for (size_t i = 0; i < sequence.size(); i++)
 	{
 		auto cInfo = channelLookup[sequence[i]];
-		os << cInfo.channelId << " " << (int)nearbyint(cInfo.exposureMs * 1000);
+		os << cInfo.ttlId << " " << (int)nearbyint(cInfo.exposureMs * 1000);
 		if (i < sequence.size() - 1)
 			os << " ";
 	}
