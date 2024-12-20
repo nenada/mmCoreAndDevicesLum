@@ -101,7 +101,7 @@ int main(int argc, char** argv)
 		std::cout << "G2SStorageTest integrity [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [chunk_size] [flush_cycle]" << std::endl << std::endl;
 
 		std::cout << "For incompleteness test type:" << std::endl;
-		std::cout << "G2SStorageTest incomplete [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [chunk_size] [flush_cycle]" << std::endl << std::endl;
+		std::cout << "G2SStorageTest partial [storage_engine] [save_location] [camara] [channel_count] [time_points_count] [positions_count] [direct_io] [chunk_size] [flush_cycle]" << std::endl << std::endl;
 		
 		std::cout << "Available storage engines: zarr, bigtiff (default)" << std::endl;
 		std::cout << "Available cameras: demo, hamamatsu" << std::endl;
@@ -119,7 +119,7 @@ int main(int argc, char** argv)
 		std::cout << "Default dataset name is test-[storage_engine]" << std::endl;
 		return 0;
 	}
-	else if(carg == "read" || carg == "write" || carg == "acq" || carg == "integrity" || carg == "incomplete")
+	else if(carg == "read" || carg == "write" || carg == "acq" || carg == "integrity" || carg == "partial")
 	{
 		selectedTest = carg == "write" ? TEST_WRITE : (carg == "read" ? TEST_READ : (carg == "acq" ? TEST_ACQ : (carg == "integrity" ? TEST_INTEGRITY : TEST_INCOMPLETE)));
 		testname = carg.substr(0, 3);
@@ -207,6 +207,14 @@ int main(int argc, char** argv)
 	// Obtain flush cycle (WRITE, ACQ tests)
 	if(argc > 10 && selectedTest != TEST_READ)
 		try { flushcycle = (int)std::stoul(argv[10]); } catch(std::exception& e) { std::cout << "Invalid argument value. " << e.what() << std::endl; return 1; }
+
+
+	// Validate dataset dimensions
+	if(timepoints < 1 || channels < 1 || positions < 0)
+	{
+		std::cout << "Invalid dataset dimensions (P x T x C): " << positions << " - " << timepoints << " - " << channels << std::endl; 
+		return 1;
+	}
 
 	// Print configuration
 	std::cout << "Data location " << savelocation << std::endl;

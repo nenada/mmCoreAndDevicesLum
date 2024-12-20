@@ -288,13 +288,13 @@ int G2SBigTiffStorage::Load(const char* path, char* handle) noexcept
 		std::error_code ec;
 		std::filesystem::path actpath = std::filesystem::u8path(path);
 		auto ex = std::filesystem::exists(actpath, ec);
-		if(!ec)
+		if(ec)
 		{
 			LogMessage("Load filesystem error " + std::to_string(ec.value()) + ". " + ec.message());
 			return ERR_TIFF_FILESYSTEM_ERROR;
 		}
 		auto rf = ex ? std::filesystem::is_regular_file(actpath, ec) : false;
-		if(!ec)
+		if(ec)
 		{
 			LogMessage("Load filesystem error " + std::to_string(ec.value()) + ". " + ec.message());
 			return ERR_TIFF_FILESYSTEM_ERROR;
@@ -514,7 +514,7 @@ int G2SBigTiffStorage::Delete(char* handle) noexcept
 		std::error_code ec;
 		auto fp = std::filesystem::u8path(it->second.Path);
 		auto ex = std::filesystem::exists(fp, ec);
-		if(!ec)
+		if(ec)
 		{
 			LogMessage("Delete filesystem error " + std::to_string(ec.value()) + ". " + ec.message());
 			return ERR_TIFF_FILESYSTEM_ERROR;
@@ -533,7 +533,7 @@ int G2SBigTiffStorage::Delete(char* handle) noexcept
    
 		// Delete the file
 		bool succ = std::filesystem::remove(fp, ec);
-		if(!ec)
+		if(ec)
 		{
 			LogMessage("Delete filesystem error " + std::to_string(ec.value()) + ". " + ec.message());
 			return ERR_TIFF_FILESYSTEM_ERROR;
@@ -574,13 +574,13 @@ int G2SBigTiffStorage::List(const char* path, char** listOfDatasets, int maxItem
 		std::error_code ec;
 		auto dp = std::filesystem::u8path(path);
 		auto exs = std::filesystem::exists(dp, ec);
-		if(!ec)
+		if(ec)
 		{
 			LogMessage("List filesystem error " + std::to_string(ec.value()) + ". " + ec.message());
 			return ERR_TIFF_FILESYSTEM_ERROR;
 		}
 		auto isdir = std::filesystem::is_directory(dp, ec);
-		if(!ec)
+		if(ec)
 		{
 			LogMessage("List filesystem error " + std::to_string(ec.value()) + ". " + ec.message());
 			return ERR_TIFF_FILESYSTEM_ERROR;
@@ -1055,11 +1055,11 @@ bool G2SBigTiffStorage::CanLoad(const char* path) noexcept
 		std::filesystem::path xpath = std::filesystem::u8path(path);
 		if(!std::filesystem::exists(xpath, ec))
 			return false;
-		if(!ec)
+		if(ec)
 			return false;
 
 		bool isdir = std::filesystem::is_directory(xpath, ec);
-		if(!ec)
+		if(ec)
 			return false;
 		if(isdir)
 		{
@@ -1079,7 +1079,7 @@ bool G2SBigTiffStorage::CanLoad(const char* path) noexcept
 
 				// Skip folders
 				bool issubdir = std::filesystem::is_directory(entry, ec);
-				if(!ec)
+				if(ec)
 				{
 					LogMessage("CanLoad filesystem error " + std::to_string(ec.value()) + ". " + ec.message());
 					return false;
