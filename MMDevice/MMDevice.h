@@ -1604,8 +1604,8 @@ namespace MM {
        * Custom, volatile metadata
        * Typically used for comments and display settings
        */
-      virtual int setCustomMetadata(const char* handle, const char* key, const char* content) = 0;
-      virtual int getCustomMetadata(const char* handle, const char* key, char* content, int maxContentLength) = 0;;
+      virtual int SetCustomMetadata(const char* handle, const char* key, const char* content) = 0;
+      virtual int GetCustomMetadata(const char* handle, const char* key, char* content, int maxContentLength) = 0;
    };
 
 

@@ -73,6 +73,8 @@ public:
    int                                             GetDimension(const char* handle, int dimension, char* name, int nameLength, char* meaning, int meaningLength) noexcept;
    int                                             GetCoordinate(const char* handle, int dimension, int coordinate, char* name, int nameLength) noexcept;
 	int															GetImageCount(const char* handle, int& imgcnt) noexcept;
+	int															SetCustomMetadata(const char* handle, const char* key, const char* content) noexcept;
+	int															GetCustomMetadata(const char* handle, const char* key, char* content, int maxContentLength) noexcept;
    bool                                            IsOpen(const char* handle) noexcept;
 	bool                                            IsReadOnly(const char* handle) noexcept;
    int                                             GetPath(const char* handle, char* path, int maxPathLength) noexcept;

@@ -69,6 +69,8 @@ public:
    bool IsOpen(const char* handle);
 	bool IsReadOnly(const char* handle);
    int GetPath(const char* handle, char* path, int maxPathLength);
+	int SetCustomMetadata(const char* handle, const char* key, const char* content) { return DEVICE_UNSUPPORTED_COMMAND; }
+	int GetCustomMetadata(const char* handle, const char* key, char* content, int maxContentLength) { return DEVICE_UNSUPPORTED_COMMAND; }
 
 
    // action interface

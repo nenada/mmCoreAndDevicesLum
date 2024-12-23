@@ -121,6 +121,9 @@ public:
 	std::uint32_t												getImageCount() const noexcept { return imgcounter; }
 	std::string													getPath() const noexcept { return dspath; }
 	std::string													getName() const noexcept { return dsname; }
+	void															setCustomMetadata(const std::string& key, const std::string& value) noexcept;
+	std::string													getCustomMetadata(const std::string& key) const;
+	bool															hasCustomMetadata(const std::string& key) const noexcept;
 	bool															isDirectIO() const noexcept { return directIo; }
 	bool															isBigTIFF() const noexcept { return bigTiff; }
 	bool															isInWriteMode() const noexcept { return writemode; }
@@ -141,6 +144,8 @@ private:
 	void															resetAxisInfo() noexcept;
 	void															parseAxisInfo();
 	void															writeAxisInfo() const noexcept;
+	void															parseCustomMetadata();
+	void															writeCustomMetadata() const noexcept;
 
 private:
 	//============================================================================================================================
@@ -152,8 +157,9 @@ private:
 	std::vector<std::uint32_t>								shape;											///< Dataset shape (dimension / axis sizes)
 	std::vector<G2SFileStreamHandle>						datachunks;										///< Data chunks / File stream descriptors
 	G2SFileStreamHandle										activechunk;									///< Active data chunk
-	std::vector<unsigned char>								metadata;										///< Dataset metdata (cache)
+	std::vector<unsigned char>								metadata;										///< Dataset (summary) metdata (cache)
 	std::vector<G2SDimensionInfo>							axisinfo;										///< Dataset axis descriptors
+	std::map<std::string, std::string>					custommeta;										///< Custom metadata map
 	std::uint32_t												imgcounter;										///< Image counter
 	std::uint32_t												flushcnt;										///< Image flush cycles
 	std::uint32_t												chunksize;										///< Chunk size

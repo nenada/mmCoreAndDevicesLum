@@ -2489,8 +2489,6 @@ class CStorageBase : public CDeviceBase<MM::Storage, U>
 public:
    bool CanLoad(const char* path) { return false; }
    int GetProgress(const char* handle) { return -1; }
-   int setCustomMetadata(const char* handle, const char* key, const char* content) { return DEVICE_UNSUPPORTED_COMMAND; }
-   int getCustomMetadata(const char* handle, const char* key, char* content, int maxContentLength) { return DEVICE_UNSUPPORTED_COMMAND; }
 };
 
 
