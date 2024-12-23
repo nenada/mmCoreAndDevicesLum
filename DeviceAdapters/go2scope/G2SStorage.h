@@ -60,6 +60,9 @@
 #define ERR_TIFF_DATASET_READONLY	 140512
 #define ERR_TIFF_DELETE_FAILED		 140513
 #define ERR_TIFF_ALLOCATION_FAILED	 140514
+#define ERR_TIFF_CORRUPTED_METADATA	 140515
+#define ERR_TIFF_UPDATE_FAIL			 140516
+#define ERR_TIFF_FILESYSTEM_ERROR	 140517
 
 //////////////////////////////////////////////////////////////////////////////
 // Cache configuration
