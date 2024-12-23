@@ -1599,6 +1599,13 @@ namespace MM {
       virtual int GetCoordinate(const char* handle, int dimension, int coordinate, char* name, int nameLength) = 0;
 
 		virtual int GetImageCount(const char* handle, int& imgcount) = 0;
+
+      /**
+       * Custom, volatile metadata
+       * Typically used for comments and display settings
+       */
+      virtual int setCustomMetadata(const char* handle, const char* key, const char* content) = 0;
+      virtual int getCustomMetadata(const char* handle, const char* key, char* content, int maxContentLength) = 0;;
    };
 
 
