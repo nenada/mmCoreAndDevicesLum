@@ -47,6 +47,7 @@ public:
    int Delete(char* handle);
    int List(const char* path, std::vector<std::string>& datasets);
    int AddImage(const char* handle, int sizeInBytes, unsigned char* pixels, std::vector<int>& coordinates, const char* imageMeta);
+   int AppendImage(const char* handle, int sizeInBytes, unsigned char* pixels, const char* imageMeta);
    int GetSummaryMeta(const char* handle, std::string& meta);
    int GetImageMeta(const char* handle, const std::vector<int>& coordinates, std::string& meta);
    const unsigned char* GetImage(const char* handle, const std::vector<int>& coordinates);

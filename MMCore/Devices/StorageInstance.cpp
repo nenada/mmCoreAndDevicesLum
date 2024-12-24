@@ -139,6 +139,12 @@ int StorageInstance::AddImage(const char* handle, int sizeInBytes, unsigned char
    return GetImpl()->AddImage(handle, sizeInBytes, pixels, &coordinates[0], coordinates.size(), imageMeta);
 }
 
+int StorageInstance::AppendImage(const char* handle, int sizeInBytes, unsigned char* pixels, const char* imageMeta)
+{
+   RequireInitialized(__func__);
+   return GetImpl()->AppendImage(handle, sizeInBytes, pixels, imageMeta);
+}
+
 int StorageInstance::GetSummaryMeta(const char* handle, std::string& meta)
 {
 	char cMeta[MM::MaxMetadataLength];

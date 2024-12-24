@@ -7789,9 +7789,19 @@ void CMMCore::addImage(const char* handle, int sizeInBytes, const STORAGEIMG pix
    std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
    if (storage)
    {
+      int ret(0);
       mm::DeviceModuleLockGuard guard(storage);
-      std::vector<int> coords(coordinates.begin(), coordinates.end());
-      int ret = storage->AddImage(handle, sizeInBytes, pixels, coords, imageMeta);
+      if (coordinates.empty())
+      {
+         // append
+         ret = storage->AppendImage(handle, sizeInBytes, pixels, imageMeta);
+      }
+      else
+      {
+         // insert
+         std::vector<int> coords(coordinates.begin(), coordinates.end());
+         ret = storage->AddImage(handle, sizeInBytes, pixels, coords, imageMeta);
+      }
       if (ret != DEVICE_OK)
       {
          logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
@@ -7819,8 +7829,16 @@ void CMMCore::addImage(const char* handle, int sizeInShorts, const STORAGEIMG16 
    if (storage)
    {
       mm::DeviceModuleLockGuard guard(storage);
-      std::vector<int> coords(coordinates.begin(), coordinates.end());
-      int ret = storage->AddImage(handle, sizeInShorts * 2, reinterpret_cast<unsigned char*>(pixels), coords, imageMeta);
+      int ret(0);
+      if (coordinates.empty())
+      {
+         ret = storage->AppendImage(handle, sizeInShorts * 2, reinterpret_cast<unsigned char*>(pixels), imageMeta);
+      }
+      else
+      {
+         std::vector<int> coords(coordinates.begin(), coordinates.end());
+         ret = storage->AddImage(handle, sizeInShorts * 2, reinterpret_cast<unsigned char*>(pixels), coords, imageMeta);
+      }
       if (ret != DEVICE_OK)
       {
          logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
@@ -8091,10 +8109,19 @@ void CMMCore::snapAndSave(const char* handle, const std::vector<long>& coordinat
       std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
       if (storage)
       {
-         mm::DeviceModuleLockGuard guard(storage);
-         std::vector<int> coords(coordinates.begin(), coordinates.end());
+         mm::DeviceModuleLockGuard storageGuard(storage);
+         int ret(0);
          int imageSize = camera->GetImageWidth() * camera->GetImageHeight() * camera->GetImageBytesPerPixel();
-         int ret = storage->AddImage(handle, imageSize, pBuf, coords, imageMeta);
+
+         if (coordinates.empty())
+         {
+            ret = storage->AppendImage(handle, imageSize, pBuf, imageMeta);
+         }
+         else
+         {
+            std::vector<int> coords(coordinates.begin(), coordinates.end());
+            ret = storage->AddImage(handle, imageSize, pBuf, coords, imageMeta);
+         }
          if (ret != DEVICE_OK)
          {
             logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
@@ -8132,10 +8159,18 @@ void CMMCore::saveNextImage(const char* handle, const std::vector<long>& coordin
    std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
    if (storage)
    {
-      mm::DeviceModuleLockGuard guard(storage);
-      std::vector<int> coords(coordinates.begin(), coordinates.end());
+      int ret(0);
       int imageSize = img->Width() * img->Height() * img->Depth();
-      int ret = storage->AddImage(handle, imageSize, const_cast<unsigned char*>(img->GetPixels()), coords, imageMeta);
+      mm::DeviceModuleLockGuard guard(storage);
+      if (coordinates.empty())
+      {
+         ret = storage->AppendImage(handle, imageSize, const_cast<unsigned char*>(img->GetPixels()), imageMeta);
+      }
+      else
+      {
+         std::vector<int> coords(coordinates.begin(), coordinates.end());
+         ret = storage->AddImage(handle, imageSize, const_cast<unsigned char*>(img->GetPixels()), coords, imageMeta);
+      }
       if (ret != DEVICE_OK)
       {
          logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
@@ -8160,6 +8195,7 @@ void CMMCore::saveNextImage(const char* handle, const std::vector<long>& coordin
 void CMMCore::attachStorageToCircularBuffer(const char* handle)  throw (CMMError)
 {
    // TODO
+   throw CMMError("Feature not supported", MMERR_GENERIC);
 }
 
 /**
