@@ -409,7 +409,7 @@ int G2SBigTiffStorage::Load(const char* path, char* handle) noexcept
 }
 
 /**
- * Get dataset shape
+ * Get actual dataset shape
  * Shape contains image width and height as first two dimensions
  * @param handle Entry GUID
  * @param shape Dataset shape [out]
@@ -427,7 +427,7 @@ int G2SBigTiffStorage::GetShape(const char* handle, int shape[]) noexcept
 
 	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
 	for(std::size_t i = 0; i < fs->getDimension(); i++)
-		shape[i] = fs->getShape()[i];
+		shape[i] = fs->getActualShape()[i];
    return DEVICE_OK;
 }
 
@@ -627,7 +627,7 @@ int G2SBigTiffStorage::AddImage(const char* handle, int sizeInBytes, unsigned ch
 	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
 	if(fs->isInReadMode())
 		return ERR_TIFF_DATASET_READONLY;
-	if(!validateCoordinates(fs, coordinates, numCoordinates))
+	if(!validateCoordinates(fs, coordinates, numCoordinates, true))
 		return ERR_TIFF_INVALID_COORDINATE;
 	if(fs->isCoordinateSet(coordinates, numCoordinates))
 		return ERR_TIFF_INVALID_COORDINATE;
@@ -866,7 +866,7 @@ int G2SBigTiffStorage::ConfigureCoordinate(const char* handle, int dimension, in
 
 	if(dimension < 0 || (std::size_t)dimension >= fs->getDimension())
 		return ERR_TIFF_INVALID_DIMENSIONS;
-   if(coordinate < 0 || (std::size_t)coordinate >= fs->getShape()[dimension])
+   if(coordinate < 0 || ((std::size_t)coordinate >= fs->getShape()[dimension] && dimension > 0))
       return ERR_TIFF_INVALID_COORDINATE;
    fs->configureCoordinate(dimension, coordinate, std::string(name));
    return DEVICE_OK;
@@ -948,17 +948,27 @@ int G2SBigTiffStorage::GetCoordinate(const char* handle, int dimension, int coor
 
 	if(dimension < 0 || (std::size_t)dimension >= fs->getDimension())
 		return ERR_TIFF_INVALID_DIMENSIONS;
-	if(coordinate < 0 || (std::size_t)coordinate >= fs->getShape()[dimension])
+	if(coordinate < 0)
 		return ERR_TIFF_INVALID_COORDINATE;
+	if((std::size_t)coordinate >= fs->getShape()[dimension])
+	{
+		if(dimension > 0)
+			return ERR_TIFF_INVALID_COORDINATE;
+		if((std::size_t)coordinate >= fs->getActualShape()[dimension])
+			return ERR_TIFF_INVALID_COORDINATE;
+	}
 
 	try
 	{
 		const auto& axinf = fs->getAxisInfo((std::uint32_t)dimension);
-		if((std::size_t)coordinate >= axinf.Coordinates.size())
+		if((std::size_t)coordinate < axinf.Coordinates.size())
+		{
+			if(axinf.Coordinates[coordinate].size() > (std::size_t)nameLength)
+				return ERR_TIFF_STRING_TOO_LONG;
+			strncpy(name, axinf.Coordinates[coordinate].c_str(), nameLength);
+		}
+		else if(dimension > 0)
 			return ERR_TIFF_INVALID_COORDINATE;
-		if(axinf.Coordinates[coordinate].size() > (std::size_t)nameLength)
-			return ERR_TIFF_STRING_TOO_LONG;
-		strncpy(name, axinf.Coordinates[coordinate].c_str(), nameLength);
 		return DEVICE_OK;
 	}
 	catch(std::exception& e)
@@ -1262,14 +1272,19 @@ bool G2SBigTiffStorage::scanDir(const std::string& path, char** listOfDatasets, 
  * @param numCoordinates Coordinate count
  * @return Are coordinates valid
  */ 
-bool G2SBigTiffStorage::validateCoordinates(const G2SBigTiffDataset* fs, int coordinates[], int numCoordinates) noexcept
+bool G2SBigTiffStorage::validateCoordinates(const G2SBigTiffDataset* fs, int coordinates[], int numCoordinates, bool flexaxis0) noexcept
 {
 	if((std::size_t)numCoordinates != fs->getDimension() && (std::size_t)numCoordinates != fs->getDimension() - 2)
 		return false;
 	for(int i = 0; i < (int)fs->getDimension() - 2; i++)
 	{
-		if(coordinates[i] < 0 || coordinates[i] >= (int)fs->getShape()[i])
+		if(coordinates[i] < 0)
 			return false;
+		if(coordinates[i] >= (int)fs->getActualShape()[i])
+		{
+			if(i > 0 || !flexaxis0)
+				return false;
+		}
 	}
 	return true;
 }

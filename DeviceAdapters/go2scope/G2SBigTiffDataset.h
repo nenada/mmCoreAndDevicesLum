@@ -98,8 +98,9 @@ public:
 	void															setShape(const std::vector<std::uint32_t>& dims);
 	void															setShape(std::initializer_list<std::uint32_t> dims);
 	std::vector<std::uint32_t>								getShape() const noexcept { return shape; }
+	std::vector<std::uint32_t>								getActualShape() const noexcept;
 	std::size_t													getDimension() const noexcept { return shape.size(); }
-	std::uint32_t												getAxisSize(std::size_t ind) const noexcept { return ind < shape.size() ? shape[ind] : 0; }
+	std::uint32_t												getAxisSize(std::size_t ind) const noexcept;
 	std::uint32_t												getWidth() const noexcept { return shape.size() < 2 ? 0 : shape[shape.size() - 1]; }
 	std::uint32_t												getHeight() const noexcept { return shape.size() < 2 ? 0 : shape[shape.size() - 2]; }
 	void															setPixelFormat(std::uint8_t depth, std::uint8_t vsamples = 1);
@@ -140,6 +141,7 @@ private:
 	void															selectImage(const std::vector<std::uint32_t>& coord);
 	void															advanceImage();
 	std::uint32_t												getChunkImageCount() const noexcept;
+	std::uint32_t												getFixBlockImageCount() const noexcept;
 	void															calcImageIndex(const std::vector<std::uint32_t>& coord, std::uint32_t& chunkind, std::uint32_t& imgind) const;
 	void															resetAxisInfo() noexcept;
 	void															parseAxisInfo();

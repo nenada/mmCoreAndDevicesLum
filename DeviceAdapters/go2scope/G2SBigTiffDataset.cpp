@@ -300,7 +300,7 @@ void G2SBigTiffDataset::setShape(const std::vector<std::uint32_t>& dims)
 
 /**
  * Set dataset shape / dimension & axis sizes
- * First two axis are always width and height
+ * Last two axis are always width and height
  * If the shape info is invalid this method will take no effect
  * Shape can only be set in the write mode, before adding any images
  * @param dims Axis sizes list
@@ -330,6 +330,32 @@ void G2SBigTiffDataset::setShape(std::initializer_list<std::uint32_t> dims)
 	// Write shape info
 	if(activechunk)
 		activechunk->writeShapeInfo(shape, chunksize);
+}
+
+/**
+ * Get actual dataset shape / dimension & axis sizes (based on the actual image count)
+ * Last two axis are always width and height
+ * @return Dataset shape
+ */
+std::vector<std::uint32_t> G2SBigTiffDataset::getActualShape() const noexcept
+{
+	std::vector<std::uint32_t> ret = shape;
+	ret[0] = (int)std::ceil((double)imgcounter / getFixBlockImageCount());
+	return ret;
+}
+
+/**
+ * Get actual axis size (based on the actual image count)
+ * @param ind Axis index
+ * @return Axis size
+ */
+std::uint32_t G2SBigTiffDataset::getAxisSize(std::size_t ind) const noexcept 
+{ 
+	if(ind >= shape.size())
+		return 0;
+	if(ind == 0)
+		return (int)std::ceil((double)imgcounter / getFixBlockImageCount());
+	return shape[ind]; 
 }
 
 /**
@@ -439,10 +465,15 @@ void G2SBigTiffDataset::configureCoordinate(int dim, int coord, const std::strin
 {
 	if(!writemode)
 		return;
-	if(dim < 0 || (std::size_t)dim >= axisinfo.size() - 2)
+	if(dim < 0 || coord < 0 || (std::size_t)dim >= axisinfo.size() - 2)
 		return;
-	if(coord < 0 || (std::size_t)coord >= axisinfo[dim].Coordinates.size())
-		return;
+	if((std::size_t)coord >= axisinfo[dim].Coordinates.size())
+	{
+		if(dim == 0)
+			axisinfo[dim].Coordinates.resize((std::size_t)coord + 1);
+		else 
+			return;
+	}
 	axisinfo[dim].Coordinates[coord] = desc;
 }
 
@@ -770,6 +801,18 @@ std::uint32_t G2SBigTiffDataset::getChunkImageCount() const noexcept
 }
 
 /**
+ * Get number of images in a fix block (dataset subset without the slowest changing axis)
+ * @return Image count
+ */
+std::uint32_t G2SBigTiffDataset::getFixBlockImageCount() const noexcept
+{
+	std::uint32_t ret = 1;
+	for(std::size_t i = 1; i < shape.size() - 2; i++)
+		ret *= shape[i];
+	return ret;
+}
+
+/**
  * Calculate image index from image coordinates
  * Image coordiantes should not contain indices for the last two dimensions (width & height)
  * By convention image acquisitions loops through the coordinates in the descending order (higher coordinates are looped first)
@@ -874,8 +917,14 @@ void G2SBigTiffDataset::parseAxisInfo()
 		{
 			throw std::runtime_error("Unable to load axis info. " + std::string(e.what()) + ", axis: " + std::to_string(ind));
 		}
-		if(axisinfo[ind].Coordinates.size() != axisdim || tokens.size() != (std::size_t)(3 + axisdim))
-			throw std::runtime_error("Unable to load axis info. Axis size missmatch, axis: " + std::to_string(ind));
+		if(tokens.size() != (std::size_t)(3 + axisdim))
+			throw std::runtime_error("Unable to load axis info. Axis info corrupted, axis: " + std::to_string(ind));
+		if(axisinfo[ind].Coordinates.size() != axisdim)
+		{
+			if(ind > 0)
+				throw std::runtime_error("Unable to load axis info. Axis size missmatch, axis: " + std::to_string(ind));
+			axisinfo[ind].Coordinates.resize(axisdim);
+		}
 		axisinfo[ind].Name = tokens[0];
 		axisinfo[ind].Description = tokens[1];
 		for(std::uint32_t i = 0; i < axisdim; i++)

@@ -36,5 +36,8 @@
     <ClCompile Include="G2SIncompletenessTest.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="G2SOverflowTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

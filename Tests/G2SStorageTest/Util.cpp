@@ -387,7 +387,7 @@ void validateDataset(CMMCore& core, const std::string& handle, const std::string
 	std::vector<long> shape = core.getDatasetShape(handle.c_str());
 	if(shape.size() != acqshape.size())
 		throw std::runtime_error("Dataset integrity check failed. Dataset shape dimension missmatch");
-	for(std::size_t i = 0; i < shape.size(); i++)
+	for(std::size_t i = 1; i < shape.size(); i++)
 	{
 		if(shape[i] != acqshape[i])
 			throw std::runtime_error("Dataset integrity check failed. Dataset axis dimension missmatch, axis " + std::to_string(i));
@@ -473,9 +473,9 @@ void validateAxisInfo(CMMCore& core, const std::string& handle, const std::vecto
 		
 		if(i >= shape.size() - 2)
 			continue;
-		if((std::size_t)shape[i] != dcoord[i].size())
+		if(i > 0 && (std::size_t)shape[i] != dcoord[i].size())
 			throw std::runtime_error("Dataset integrity check failed. Axis coordinate vector size missmatch");
-		for(long j = 0; j < shape[i]; j++)
+		for(long j = 0; j < dcoord[i].size(); j++)
 		{
 			std::string zval = core.getCoordinateName(handle.c_str(), (int)i, (int)j);
 			if(!compareText(zval, dcoord[i][j]))

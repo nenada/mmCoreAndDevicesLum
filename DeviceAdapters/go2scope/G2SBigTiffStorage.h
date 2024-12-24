@@ -86,7 +86,7 @@ protected:
    //=========================================================================================================================
    void                                            cacheReduce() noexcept;
    bool                                            scanDir(const std::string& path, char** listOfDatasets, int maxItems, int maxItemLength, int cpos) noexcept;
-	bool															validateCoordinates(const G2SBigTiffDataset* fs, int coordinates[], int numCoordinates) noexcept;
+	bool															validateCoordinates(const G2SBigTiffDataset* fs, int coordinates[], int numCoordinates, bool flexaxis0 = false) noexcept;
 	bool															getDirectIO() const noexcept;
 	int															getFlushCycle() const noexcept;
 	int															getChunkSize() const noexcept;

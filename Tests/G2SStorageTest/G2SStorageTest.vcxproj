@@ -85,6 +85,7 @@
     <ClCompile Include="G2SAcqTest.cpp" />
     <ClCompile Include="G2SIncompletenessTest.cpp" />
     <ClCompile Include="G2SIntegrityTest.cpp" />
+    <ClCompile Include="G2SOverflowTest.cpp" />
     <ClCompile Include="G2SReaderTest.cpp" />
     <ClCompile Include="G2SStorageTest.cpp" />
     <ClCompile Include="G2SWriterTest.cpp" />
