@@ -1463,6 +1463,7 @@ namespace MM {
     * Storage API
     * Dev Notes:
     *    - all "meta" variables are ASCII strings, typically JSON encoded, but not necessarily
+    *    - functions returning metadata will allocate buffers on the heap. The buffers must be released after the contents are copied.
     *    - whether the same device can create multiple datasets at the same time is implementation dependent
     *    - AddImage function allows for inserting images in arbitrary order to any point in the coordinate space.
     *      This is very difficult to implement for most file formats. The implementation should return a run time error
@@ -1573,12 +1574,12 @@ namespace MM {
       /**
        * Returns summary metadata
        */
-      virtual int GetSummaryMeta(const char* handle, char* meta, int bufSize) = 0;
+      virtual int GetSummaryMeta(const char* handle, char* meta) = 0;
 
       /**
        * Returns summary metadata
        */
-      virtual int GetImageMeta(const char* handle, int coordinates[], int numCoordinates, char* meta, int bufSize) = 0;
+      virtual int GetImageMeta(const char* handle, int coordinates[], int numCoordinates, char* meta) = 0;
 
       /**
        * Returns image pixels
@@ -1605,7 +1606,13 @@ namespace MM {
        * Typically used for comments and display settings
        */
       virtual int SetCustomMetadata(const char* handle, const char* key, const char* content) = 0;
-      virtual int GetCustomMetadata(const char* handle, const char* key, char* content, int maxContentLength) = 0;
+      virtual int GetCustomMetadata(const char* handle, const char* key, char* content) = 0;
+
+      /**
+       * Metadata retrieval functions: getSummaryMeta, getImageMeta and getCustomMeta, will allocate string buffer
+       * internally. Therefore, we need to release the allocated buffer after we copied the contents.
+       */
+      virtual void ReleaseStringBuffer(char* buffer) = 0;
    };
 
 

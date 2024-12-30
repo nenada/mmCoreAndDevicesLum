@@ -688,12 +688,11 @@ int G2SBigTiffStorage::AppendImage(const char* handle, int sizeInBytes, unsigned
  * copied, and the status code 'DEVICE_SEQUENCE_TOO_LARGE' will be returned
  * @param handle Entry GUID
  * @param meta Metadata buffer [out]
- * @param bufSize Buffer size
  * @return Status code
  */
-int G2SBigTiffStorage::GetSummaryMeta(const char* handle, char* meta, int bufSize) noexcept
+int G2SBigTiffStorage::GetSummaryMeta(const char* handle, char* meta) noexcept
 {
-   if(handle == nullptr || meta == nullptr || bufSize <= 0)
+   if(handle == nullptr)
       return DEVICE_INVALID_INPUT_PARAM;
 
 	// Obtain dataset descriptor from cache
@@ -708,8 +707,9 @@ int G2SBigTiffStorage::GetSummaryMeta(const char* handle, char* meta, int bufSiz
 	{
 		// Copy metadata string
 		auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
-		strncpy(meta, fs->getMetadata().c_str(), bufSize);
-		return fs->getMetadata().size() > (std::size_t)bufSize ? ERR_TIFF_STRING_TOO_LONG : DEVICE_OK;
+		meta = new char[fs->getMetadata().size() + 1];
+		strncpy(meta, fs->getMetadata().c_str(), fs->getMetadata().size() + 1);
+		return DEVICE_OK;
 	}
 	catch(std::exception& e)
 	{
@@ -729,9 +729,9 @@ int G2SBigTiffStorage::GetSummaryMeta(const char* handle, char* meta, int bufSiz
  * @param bufSize Buffer size
  * @return Status code
  */
-int G2SBigTiffStorage::GetImageMeta(const char* handle, int coordinates[], int numCoordinates, char* meta, int bufSize) noexcept
+int G2SBigTiffStorage::GetImageMeta(const char* handle, int coordinates[], int numCoordinates, char* meta) noexcept
 {
-   if(handle == nullptr || coordinates == nullptr || numCoordinates == 0 || meta == nullptr || bufSize <= 0)
+   if(handle == nullptr || coordinates == nullptr || numCoordinates == 0)
       return DEVICE_INVALID_INPUT_PARAM;
 
 	// Obtain dataset descriptor from cache
@@ -759,8 +759,8 @@ int G2SBigTiffStorage::GetImageMeta(const char* handle, int coordinates[], int n
 	try
 	{
 		auto fmeta = fs->getImageMetadata(coords);
-		if(!fmeta.empty())
-			strncpy(meta, fmeta.c_str(), bufSize);
+		meta = new char[fmeta.size() + 1];
+		strncpy(meta, fs->getMetadata().c_str(), fmeta.size() + 1);
 		return DEVICE_OK;
 	}
 	catch(std::exception& e)
@@ -1027,12 +1027,11 @@ int G2SBigTiffStorage::SetCustomMetadata(const char* handle, const char* key, co
  * @param handle Entry GUID
  * @param key Metadata entry key
  * @param content Metadata entry value / content [out]
- * @param maxContentLength Metadata entry value / content max length
  * @return Status code
  */
-int G2SBigTiffStorage::GetCustomMetadata(const char* handle, const char* key, char* content, int maxContentLength) noexcept
+int G2SBigTiffStorage::GetCustomMetadata(const char* handle, const char* key, char* content) noexcept
 {
-	if(handle == nullptr || key == nullptr || maxContentLength <= 0 || content == nullptr)
+	if(handle == nullptr || key == nullptr)
 		return DEVICE_INVALID_INPUT_PARAM;
 	auto it = cache.find(handle);
 	if(it == cache.end())
@@ -1042,12 +1041,12 @@ int G2SBigTiffStorage::GetCustomMetadata(const char* handle, const char* key, ch
 	auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
 	if(!fs->hasCustomMetadata(key))
 		return ERR_TIFF_INVALID_META_KEY;
+	
 	try
 	{
 		auto mval = fs->getCustomMetadata(key);
-		if(mval.size() > (std::size_t)maxContentLength)
-			return ERR_TIFF_STRING_TOO_LONG;
-		strncpy(content, mval.c_str(), maxContentLength);
+		content = new char[mval.size() + 1];
+		strncpy(content, mval.c_str(), mval.size() + 1);
 		return DEVICE_OK;
 	}
 	catch(std::exception& e) 

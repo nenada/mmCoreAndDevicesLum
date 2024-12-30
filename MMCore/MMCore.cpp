@@ -7102,6 +7102,7 @@ void CMMCore::InitializeErrorMessages()
    errorText_[MMERR_BadAffineTransform] = "Bad affine transform.  Affine transforms need to have 6 numbers; 2 rows of 3 column.";
    errorText_[MMERR_StorageNotAvailable] = "Storage not loaded or initialized.";
    errorText_[MMERR_StorageImageNotAvailable] = "Image not available at specified coordinates.";
+   errorText_[MMERR_StorageMetadataNotAvailable] = "Metadata not available.";
 }
 
 void CMMCore::CreateCoreProperties()
@@ -8012,7 +8013,7 @@ std::string CMMCore::getSummaryMeta(const char* handle) throw (CMMError)
       if (ret != DEVICE_OK)
       {
          logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
-         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_StorageMetadataNotAvailable);
       }
       return meta;
    }
@@ -8039,7 +8040,7 @@ std::string CMMCore::getImageMeta(const char* handle, const std::vector<long>& c
       if (ret != DEVICE_OK)
       {
          logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
-         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_DEVICE_GENERIC);
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_StorageMetadataNotAvailable);
       }
       return meta;
    }
@@ -8072,7 +8073,20 @@ void CMMCore::setCustomMeta(const char* handle, const char* key, const char* met
  */
 std::string CMMCore::getCustomMeta(const char* handle, const char* key)
 {
-   return std::string();
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::string meta;
+      int ret = storage->GetCustomMeta(handle, key, meta);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError(getDeviceErrorText(ret, storage).c_str(), MMERR_StorageMetadataNotAvailable);
+      }
+      return meta;
+   }
+   throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
 }
 
 /**

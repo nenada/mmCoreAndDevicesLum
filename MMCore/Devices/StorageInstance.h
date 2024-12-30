@@ -50,6 +50,8 @@ public:
    int AppendImage(const char* handle, int sizeInBytes, unsigned char* pixels, const char* imageMeta);
    int GetSummaryMeta(const char* handle, std::string& meta);
    int GetImageMeta(const char* handle, const std::vector<int>& coordinates, std::string& meta);
+   int GetCustomMeta(const char* handle, const std::string& key, std::string& meta);
+   int SetCustomMeta(const char* handle, const std::string& key, const std::string& meta);
    const unsigned char* GetImage(const char* handle, const std::vector<int>& coordinates);
    int GetNumberOfDimensions(const char* handle, int& numDimensions);
    int GetDimension(const char* handle, int dimension, std::string& name, std::string& meaning);
