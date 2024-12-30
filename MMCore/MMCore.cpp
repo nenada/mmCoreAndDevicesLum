@@ -8047,6 +8047,35 @@ std::string CMMCore::getImageMeta(const char* handle, const std::vector<long>& c
 }
 
 /**
+ * Sets custom metadata for a given dataset.
+ * Custom metadata is re-writable, i.e. it can be called at any time,
+ * during acquisition or after.
+ *
+ * @param handle    Dataset handle to set metadata for
+ * @param key      Metadata key/name identifier
+ * @param meta     Metadata string to be stored
+ *
+ * @throws MMCoreException If the specified device handle is invalid or key not found
+ */
+void CMMCore::setCustomMeta(const char* handle, const char* key, const char* meta)
+{
+}
+
+/**
+ * Retrieves custom metadata for a given dataset.
+ *
+ * @param handle    Dataset handle to get metadata from
+ * @param key      Metadata key/name identifier
+ *
+ * @return         Stored metadata string for the specified key
+ * @throws MMCoreException If the specified device handle is invalid or key not found
+ */
+std::string CMMCore::getCustomMeta(const char* handle, const char* key)
+{
+   return std::string();
+}
+
+/**
  * Returns image pixels at specified coordinates
  * \param handle - dataset handle
  * \param coordinates - array of coordinates, one for each dimension
