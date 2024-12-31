@@ -7738,6 +7738,13 @@ bool CMMCore::isDatasetReadOnly(const char* handle)
 	throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
 }
 
+/**
+ * Retrieves the shape (dimensions) of a dataset
+ * Gets the size of each dimension for the specified dataset handle.
+ *
+ * \param handle The handle of the dataset to query
+ * \return Vector of dimension sizes, where each element represents the size of one dimension
+ */
 std::vector<long> CMMCore::getDatasetShape(const char* handle) throw (CMMError)
 {
    std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
@@ -7755,6 +7762,14 @@ std::vector<long> CMMCore::getDatasetShape(const char* handle) throw (CMMError)
    }
    throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
 }
+
+/**
+ * Returns the pixel type for the dataset.
+ * The pixel type enum is specific to storage device.
+ *
+ * \param handle The handle of the dataset to query
+ * \return storage type
+ */
 
 MM::StorageDataType CMMCore::getDatasetPixelType(const char* handle) throw (CMMError)
 {
@@ -8052,7 +8067,7 @@ std::string CMMCore::getImageMeta(const char* handle, const std::vector<long>& c
  * Custom metadata is re-writable, i.e. it can be called at any time,
  * during acquisition or after.
  *
- * @param handle    Dataset handle to set metadata for
+ * @param handle   Dataset handle to set metadata for
  * @param key      Metadata key/name identifier
  * @param meta     Metadata string to be stored
  *
@@ -8060,6 +8075,19 @@ std::string CMMCore::getImageMeta(const char* handle, const std::vector<long>& c
  */
 void CMMCore::setCustomMeta(const char* handle, const char* key, const char* meta)
 {
+   std::shared_ptr<StorageInstance> storage = currentStorage_.lock();
+   if (storage)
+   {
+      mm::DeviceModuleLockGuard guard(storage);
+      std::string meta;
+      int ret = storage->SetCustomMeta(handle, key, meta);
+      if (ret != DEVICE_OK)
+      {
+         logError(getDeviceName(storage).c_str(), getDeviceErrorText(ret, storage).c_str());
+         throw CMMError("Error writing custom metadata", MMERR_DEVICE_GENERIC);
+      }
+   }
+   throw CMMError(getCoreErrorText(MMERR_StorageNotAvailable).c_str(), MMERR_StorageNotAvailable);
 }
 
 /**
@@ -8227,7 +8255,7 @@ void CMMCore::saveNextImage(const char* handle, const std::vector<long>& coordin
 /**
  * Connects currently open dataset to circular buffer and streams images to disk.
  * All images currently in the buffer and entering the buffer in the future will be sent to the storage.
- * This remains in effect until the connection is canceled by calling the same function with the null handle.
+ * This remains in effect until the connection is canceled by calling the same function with the null or empty handle.
  * 
  * Metadata and coordinates are automatically generated, therefore images should be acquired in the order
  * specified in the shape.
@@ -8250,6 +8278,9 @@ std::string CMMCore::getAttachedStorage()
    return std::string();
 }
 
+/**
+ * Returns the last error that occured during background streaming.
+ */
 std::string CMMCore::getLastAttachedStorageError()
 {
    // TODO:
