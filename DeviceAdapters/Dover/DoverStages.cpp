@@ -104,6 +104,10 @@ int CDoverStage::Initialize()
 	GetLimits(low, high);
 	SetPropertyLimits(MM::g_Keyword_Position, low, high);
 
+	pAct = new CPropertyAction(this, &CDoverStage::OnMoveDistancePerPulse);
+	CreateProperty(g_Prop_MoveDistancePerPulse, "0.0", MM::Float, false, pAct);
+	SetPropertyLimits(g_Prop_MoveDistancePerPulse, 0.0, 2.0); // safety limit to 2 um
+
 	UpdateStatus();
 	initialized = true;
 
@@ -209,7 +213,46 @@ int CDoverStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
 	return DEVICE_OK;
 }
 
+int CDoverStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		double stepUm(0.0);
+		try
+		{
+			const bool forceRefresh(false);
+			dover_get_external_control(zStage, forceRefresh, &stepUm);
+			stepUm *= 1000; // convert from mm to um
+		}
+		catch (std::exception& e)
+		{
+			LogMessage(e.what());
+			return ERR_DOVER_CMD_FAILED;
+		}
 
+		pProp->Set(stepUm);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		double stepUm;
+		pProp->Get(stepUm);
+		try
+		{
+			dover_set_external_control(zStage, stepUm / 1000.0);
+		}
+		catch (std::exception& e)
+		{
+			LogMessage(e.what());
+			return ERR_DOVER_CMD_FAILED;
+		}
+	}
+
+	return DEVICE_OK;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Dover XY Stage
+//
 CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 {
 	if (g_apiInstance == nullptr)
@@ -284,6 +327,10 @@ int CDoverXYStage::Initialize()
 	pAct = new CPropertyAction(this, &CDoverXYStage::OnPositionY);
 	CreateProperty(g_Prop_DoverY, "0.0", MM::Float, false, pAct);
 	SetPropertyLimits(g_Prop_DoverY, minY, maxY);
+
+	pAct = new CPropertyAction(this, &CDoverXYStage::OnMoveDistancePerPulse);
+	CreateProperty(g_Prop_MoveDistancePerPulse, "0.0", MM::Float, false, pAct);
+	SetPropertyLimits(g_Prop_MoveDistancePerPulse, 0.0, 2.0); // safety limit to 2 um
 
 	UpdateStatus();
 	initialized = true;
@@ -435,3 +482,41 @@ int CDoverXYStage::OnPositionY(MM::PropertyBase* pProp, MM::ActionType eAct)
 
 	return DEVICE_OK;
 }
+
+int CDoverXYStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		double stepUm(0.0);
+		try
+		{
+			const bool forceRefresh(false);
+			dover_get_external_control(xyStage, forceRefresh, &stepUm);
+			stepUm *= 1000; // convert from mm to um
+		}
+		catch (std::exception& e)
+		{
+			LogMessage(e.what());
+			return ERR_DOVER_CMD_FAILED;
+		}
+
+		pProp->Set(stepUm);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		double stepUm;
+		pProp->Get(stepUm);
+		try
+		{
+			dover_set_external_control(xyStage, stepUm / 1000.0);
+		}
+		catch (std::exception& e)
+		{
+			LogMessage(e.what());
+			return ERR_DOVER_CMD_FAILED;
+		}
+	}
+
+	return DEVICE_OK;
+}
+

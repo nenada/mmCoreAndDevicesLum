@@ -40,8 +40,9 @@ static const char* g_DoverXYStage = "DoverXYStage";
 static const char* g_Prop_ModuleVersion = "ModuleVersion";
 static const char* g_Prop_DoverX = "X";
 static const char* g_Prop_DoverY = "Y";
+static const char* g_Prop_MoveDistancePerPulse = "MoveDistancePerPulse";
 
-#define DOVER_DEVICE_VERSION "1.0.1"
+#define DOVER_DEVICE_VERSION "1.0.2"
 
 //////////////////////////////////////////////////////////////////////////////
 // CDoverStage
@@ -77,6 +78,7 @@ public:
    // action interface
    // ----------------
    int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    void* zStage;
@@ -118,6 +120,7 @@ public:
    // ----------------
    int OnPositionX(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnPositionY(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 
 private:
