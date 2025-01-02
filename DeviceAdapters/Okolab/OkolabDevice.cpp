@@ -449,6 +449,9 @@ void OkolabDevice::createOkolabProperties()
 
 		uint32_t num = 0;
 		ret = oko_PropertiesGetNumber(_deviceHandle, &num);
+		std::ostringstream os;
+		os << "Detected " << num << " OKOLAB properties";
+		LogMessage(os.str().c_str());
 		if (ret == OKO_OK)
 		{
 			for (uint32_t i = 0; i < num; ++i)
@@ -513,8 +516,13 @@ void OkolabDevice::AddOkolabProperty(uint32_t propertyIndex)
 	std::string errString("");
 
 	CPropertyActionEx * pAct = NULL;
-	if(!isReadOnly)
+	if (!isReadOnly)
+	{
+		std::ostringstream os;
+		os << ">>> Created OKOLAB property action: " << name;
+		LogMessage(os.str().c_str());
 		pAct = new CPropertyActionEx(this, &OkolabDevice::OnOkolabPropertyChanged, propertyIndex);
+	}
 
 	switch(type)
 	{
