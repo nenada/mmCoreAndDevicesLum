@@ -220,7 +220,7 @@ int CDoverStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType 
 		double stepUm(0.0);
 		try
 		{
-			const bool forceRefresh(false);
+			const bool forceRefresh(true);
 			dover_get_external_control(zStage, forceRefresh, &stepUm);
 			stepUm *= 1000; // convert from mm to um
 		}
@@ -490,7 +490,7 @@ int CDoverXYStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionTyp
 		double stepUm(0.0);
 		try
 		{
-			const bool forceRefresh(false);
+			const bool forceRefresh(true);
 			dover_get_external_control(xyStage, forceRefresh, &stepUm);
 			stepUm *= 1000; // convert from mm to um
 		}
