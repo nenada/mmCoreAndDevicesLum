@@ -159,7 +159,23 @@ int OkolabDevice::Initialize()
 	{
 		nRet = GetProperty(g_RefreshInterval, _timeBetweenUpdates);
 
+		// first try to create properties
 		createOkolabProperties();
+
+		// if this is a cold start the set of properties will be likely incomplete
+		// we will try to disable and enable the standby mode
+		int stdbyRet = SetProperty("Standby mode", "Enabled");
+		if (stdbyRet == DEVICE_OK)
+		{
+			LogMessage("Standby mode set to enabled");
+			int dsblRet = SetProperty("Standby mode", "Disabled");
+			if (dsblRet == DEVICE_OK)
+			{
+				LogMessage("Standby mode set to disabled, adding missing properties");
+				// now we should be operating with the full stack of properties
+				createOkolabProperties();
+			}
+		}
 
 		createLoggerAndPlaybackFileProperties();
 		 _okolabThread = new OkolabThread(this);
