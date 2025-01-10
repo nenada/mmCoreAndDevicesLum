@@ -27,6 +27,7 @@
 static int g_doverInstanceCounter(0);
 void* g_apiInstance = nullptr;
 const double g_umPerStep(0.005); // TODO: this should be picked up from the Dover configuration file
+bool g_active = false;
 
 CDoverStage::CDoverStage() : initialized(false), zStage(nullptr)
 {
@@ -44,8 +45,10 @@ CDoverStage::CDoverStage() : initialized(false), zStage(nullptr)
 			LogMessage("Error creating Dover Z stage instance.");
 		g_doverInstanceCounter++;
 	}
-	//CreateProperty(MM::g_Keyword_Description, "Dover DOF5 Z stage", MM::String, true);
-	//CreateProperty(g_Prop_ModuleVersion, DOVER_API_VERSION, MM::String, true);
+	char version[MM::MaxStrLength];
+	if (dover_get_version(version, MM::MaxStrLength))
+		CreateProperty(g_Prop_ModuleVersion, version, MM::String, true);
+	CreateProperty(MM::g_Keyword_Description, "Dover DOF5 Z stage", MM::String, true);
 }
 
 CDoverStage::~CDoverStage()
@@ -248,6 +251,34 @@ int CDoverStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType 
 	}
 
 	return DEVICE_OK;
+}
+
+int CDoverStage::OnStagesActive(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(g_active ? 1L : 0L);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long val;
+		pProp->Get(val);
+		if (val)
+		{
+			int ret = Initialize();
+			if (ret != DEVICE_OK)
+				return ret;
+		}
+		else
+		{
+			int ret = Shutdown();
+			if (ret != DEVICE_OK)
+				return ret;
+		}
+	}
+
+	return DEVICE_OK;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

@@ -33,6 +33,7 @@
 #define ERR_DOVER_HOME_FAILED        13006
 #define ERR_DOVER_LIMITS_EXCEEDED    13007
 #define ERR_DOVER_INITIALIZE         13008
+#define ERR_DOVER_ACTIVE             13009
 
 
 static const char* g_DoverStage = "DoverStage";
@@ -79,6 +80,7 @@ public:
    // ----------------
    int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnStagesActive(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    void* zStage;
