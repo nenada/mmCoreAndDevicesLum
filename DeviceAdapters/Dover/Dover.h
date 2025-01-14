@@ -33,6 +33,8 @@
 #define ERR_DOVER_HOME_FAILED        13006
 #define ERR_DOVER_LIMITS_EXCEEDED    13007
 #define ERR_DOVER_INITIALIZE         13008
+#define ERR_DOVER_DLL_LOAD           13009
+#define ERR_DOVER_DLL_FUNCTION_LOAD  13010
 
 
 static const char* g_DoverStage = "DoverStage";
