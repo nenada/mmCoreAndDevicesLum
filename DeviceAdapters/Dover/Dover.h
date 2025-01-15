@@ -34,6 +34,8 @@
 #define ERR_DOVER_LIMITS_EXCEEDED    13007
 #define ERR_DOVER_INITIALIZE         13008
 #define ERR_DOVER_ACTIVE             13009
+#define ERR_DOVER_DLL_LOAD           13010
+#define ERR_DOVER_DLL_FUNCTION_LOAD  13011
 
 
 static const char* g_DoverStage = "DoverStage";
