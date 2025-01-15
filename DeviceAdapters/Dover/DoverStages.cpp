@@ -77,7 +77,10 @@ bool CDoverStage::Busy()
 {
 	try
 	{
-		return dover.is_busy(zStage) != 0;
+		if (g_active)
+			return dover.is_busy(zStage) != 0;
+		else
+			return false;
 	}
 	catch (std::exception& e)
 	{
@@ -195,11 +198,18 @@ int CDoverStage::SetPositionUm(double pos)
 
 int CDoverStage::GetPositionUm(double& pos)
 {
-	double doverPos;
-	int ret = dover.get_position(zStage, 0, &doverPos);
-	if (ret != DOVER_OK)
-		return ret;
-	pos = doverPos * 1000.0;
+	if (g_active)
+	{
+		double doverPos;
+		int ret = dover.get_position(zStage, 0, &doverPos);
+		if (ret != DOVER_OK)
+			return ret;
+		pos = doverPos * 1000.0;
+	}
+	else
+	{
+		pos = 0.0;
+	}
 
 	return DEVICE_OK;
 }
@@ -221,13 +231,19 @@ int CDoverStage::SetPositionSteps(long steps)
 
 int CDoverStage::GetPositionSteps(long& steps)
 {
-	double doverPos;
-	int ret = dover.get_position(zStage, 0, &doverPos);
-	if (ret != DOVER_OK)
-		return ret;
+	if (g_active)
+	{
+		double doverPos;
+		int ret = dover.get_position(zStage, 0, &doverPos);
+		if (ret != DOVER_OK)
+			return ret;
 
-	auto posUm = doverPos * 1000.0;
-	steps = (long)(posUm / g_umPerStep + 0.5);
+		auto posUm = doverPos * 1000.0;
+		steps = (long)(posUm / g_umPerStep + 0.5);
+	}
+	else
+		steps = 0L;
+
 	return DEVICE_OK;
 }
 
@@ -263,20 +279,25 @@ int CDoverStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType 
 {
 	if (eAct == MM::BeforeGet)
 	{
-		double stepUm(0.0);
-		try
+		if (g_active)
 		{
-			const bool forceRefresh(true);
-			dover.get_external_control(zStage, forceRefresh, &stepUm);
-			stepUm *= 1000; // convert from mm to um
-		}
-		catch (std::exception& e)
-		{
-			LogMessage(e.what());
-			return ERR_DOVER_CMD_FAILED;
-		}
+			double stepUm(0.0);
+			try
+			{
+				const bool forceRefresh(true);
+				dover.get_external_control(zStage, forceRefresh, &stepUm);
+				stepUm *= 1000; // convert from mm to um
+			}
+			catch (std::exception& e)
+			{
+				LogMessage(e.what());
+				return ERR_DOVER_CMD_FAILED;
+			}
 
-		pProp->Set(stepUm);
+			pProp->Set(stepUm);
+		}
+		else
+			pProp->Set(0.0);
 	}
 	else if (eAct == MM::AfterSet)
 	{
