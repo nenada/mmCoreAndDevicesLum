@@ -150,6 +150,7 @@ int CDoverStage::Shutdown()
 	int ret = dover.destroy_z_stage(zStage);
 	if (ret != DOVER_OK)
 		LogMessage("Error destroying Dover Z stage instance.");
+	zStage = nullptr;
 
 	g_doverInstanceCounter--;
 	g_doverInstanceCounter = max(0, g_doverInstanceCounter);
@@ -171,6 +172,9 @@ int CDoverStage::Shutdown()
 
 int CDoverStage::Home()
 {
+	if (!g_active)
+		return ERR_DOVER_SUSPENDED;
+
 	int ret = dover.home(zStage);
 	if (ret != DOVER_OK)
 		return ERR_DOVER_HOME_FAILED;
@@ -179,6 +183,9 @@ int CDoverStage::Home()
 
 int CDoverStage::SetPositionUm(double pos)
 {
+	if (!g_active)
+		return ERR_DOVER_SUSPENDED;
+
 	double low, high;
 	GetLimits(low, high);
 	if (pos >= high || pos <= low)
@@ -221,6 +228,9 @@ double CDoverStage::GetStepSize()
 
 int CDoverStage::SetPositionSteps(long steps)
 {
+	if (!g_active)
+		return ERR_DOVER_SUSPENDED;
+
 	double posUm = steps * g_umPerStep;
 	int ret = dover.set_position(zStage, 0, posUm / 1000.0);
 	if (ret != DOVER_OK)
@@ -267,6 +277,9 @@ int CDoverStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
 	}
 	else if (eAct == MM::AfterSet)
 	{
+		if (!g_active)
+			return ERR_DOVER_SUSPENDED;
+
 		double pos;
 		pProp->Get(pos);
 		return SetPositionUm(pos);
@@ -301,6 +314,9 @@ int CDoverStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType 
 	}
 	else if (eAct == MM::AfterSet)
 	{
+		if (!g_active)
+			return ERR_DOVER_SUSPENDED;
+
 		double stepUm;
 		pProp->Get(stepUm);
 		try

@@ -36,6 +36,7 @@
 #define ERR_DOVER_ACTIVE             13009
 #define ERR_DOVER_DLL_LOAD           13010
 #define ERR_DOVER_DLL_FUNCTION_LOAD  13011
+#define ERR_DOVER_SUSPENDED          13012
 
 
 static const char* g_DoverStage = "DoverStage";
@@ -46,7 +47,7 @@ static const char* g_Prop_DoverY = "Y";
 static const char* g_Prop_MoveDistancePerPulse = "MoveDistancePerPulse";
 static const char* g_Prop_Active = "Active";
 
-#define DOVER_DEVICE_VERSION "1.0.2"
+#define DOVER_DEVICE_VERSION "1.0.3"
 
 //////////////////////////////////////////////////////////////////////////////
 // CDoverStage
