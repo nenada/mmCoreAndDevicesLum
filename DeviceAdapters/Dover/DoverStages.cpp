@@ -128,14 +128,22 @@ int CDoverStage::Initialize()
 	CreateProperty(g_Prop_MoveDistancePerPulse, "0.0", MM::Float, false, pAct);
 	SetPropertyLimits(g_Prop_MoveDistancePerPulse, 0.0, 2.0); // safety limit to 2 um
 
+	pAct = new CPropertyAction(this, &CDoverStage::OnActive);
+	CreateProperty(g_Prop_Active, "1", MM::Integer, false, pAct);
+	SetPropertyLimits(g_Prop_Active, 0, 1);
+
 	UpdateStatus();
 	initialized = true;
+	g_active = true;
 
 	return DEVICE_OK;
 }
 
 int CDoverStage::Shutdown()
 {
+	if (!initialized)
+		return DEVICE_OK;
+
 	int ret = dover.destroy_z_stage(zStage);
 	if (ret != DOVER_OK)
 		LogMessage("Error destroying Dover Z stage instance.");
@@ -154,6 +162,7 @@ int CDoverStage::Shutdown()
 	}
 
 	initialized = false;
+	g_active = false;
 	return DEVICE_OK;
 }
 
@@ -287,7 +296,7 @@ int CDoverStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType 
 	return DEVICE_OK;
 }
 
-int CDoverStage::OnStagesActive(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CDoverStage::OnActive(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	if (eAct == MM::BeforeGet)
 	{

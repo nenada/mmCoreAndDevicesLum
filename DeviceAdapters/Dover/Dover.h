@@ -44,6 +44,7 @@ static const char* g_Prop_ModuleVersion = "ModuleVersion";
 static const char* g_Prop_DoverX = "X";
 static const char* g_Prop_DoverY = "Y";
 static const char* g_Prop_MoveDistancePerPulse = "MoveDistancePerPulse";
+static const char* g_Prop_Active = "Active";
 
 #define DOVER_DEVICE_VERSION "1.0.2"
 
@@ -82,7 +83,7 @@ public:
    // ----------------
    int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType eAct);
-   int OnStagesActive(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnActive(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    void* zStage;
