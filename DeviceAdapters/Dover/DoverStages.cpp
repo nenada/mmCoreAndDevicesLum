@@ -116,6 +116,8 @@ int CDoverStage::Initialize()
 		}
 		g_doverInstanceCounter++;
 	}
+	else
+		return ERR_DOVER_API_INSTANCE;
 
 	int ret = dover.initialize(zStage);
 	if (ret != DOVER_OK)
@@ -134,10 +136,10 @@ int CDoverStage::Initialize()
 	pAct = new CPropertyAction(this, &CDoverStage::OnActive);
 	CreateProperty(g_Prop_Active, "1", MM::Integer, false, pAct);
 	SetPropertyLimits(g_Prop_Active, 0, 1);
+	g_active = true;
 
 	UpdateStatus();
 	initialized = true;
-	g_active = true;
 
 	return DEVICE_OK;
 }
@@ -366,7 +368,7 @@ int CDoverStage::OnActive(MM::PropertyBase* pProp, MM::ActionType eAct)
 //
 CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 {
-	if (g_apiInstance == nullptr)
+	if (!hDLL)
 	{
 		int ret = loadDoverDLL();
 		if (ret != DOVER_OK)
@@ -374,19 +376,8 @@ CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 			LogMessage("Dover DLL load error: " + ret);
 			return;
 		}
+	}
 
-		ret = dover.create_api_instance(&g_apiInstance);
-		if (ret != DOVER_OK)
-			LogMessage("Error creating DoverAPI instance.");
-		g_doverInstanceCounter = 0;
-	}
-	if (g_apiInstance)
-	{
-		int ret = dover.create_xy_stage(g_apiInstance, &xyStage);
-		if (ret != DOVER_OK)
-			LogMessage("Error creating Dover XY stage instance.");
-		g_doverInstanceCounter++;
-	}
 	CreateProperty(MM::g_Keyword_Description, "Dover XY stage", MM::String, true);
 	char versionStr[MM::MaxStrLength];
 	int ret = dover.get_version(versionStr, MM::MaxStrLength);
@@ -397,22 +388,6 @@ CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 CDoverXYStage::~CDoverXYStage()
 {
 	Shutdown();
-	int ret = dover.destroy_xy_stage(xyStage);
-	if (ret != DOVER_OK)
-		LogMessage("Error destroying Dover XY stage instance.");
-
-	g_doverInstanceCounter--;
-	g_doverInstanceCounter = max(0, g_doverInstanceCounter);
-
-	// last instance releases the API
-	if (g_doverInstanceCounter == 0)
-	{
-		ret = dover.destroy_api_instance(g_apiInstance);
-		if (ret != DOVER_OK)
-			LogMessage("Error destroying DoverAPI instance.");
-
-		g_apiInstance = nullptr;
-	}
 }
 
 bool CDoverXYStage::Busy()
@@ -427,6 +402,34 @@ void CDoverXYStage::GetName(char* pszName) const
 
 int CDoverXYStage::Initialize()
 {
+	// create api instance if it does not already exist
+	if (g_apiInstance == nullptr)
+	{
+		int ret = dover.create_api_instance(&g_apiInstance);
+		if (ret != DOVER_OK)
+			LogMessage("Error creating DoverAPI instance.");
+		g_doverInstanceCounter = 0;
+	}
+
+	if (g_apiInstance == nullptr)
+	{
+		int ret = dover.create_api_instance(&g_apiInstance);
+		if (ret != DOVER_OK)
+			LogMessage("Error creating DoverAPI instance.");
+		g_doverInstanceCounter = 0;
+	}
+
+	// create xy stage
+	if (g_apiInstance)
+	{
+		int ret = dover.create_xy_stage(g_apiInstance, &xyStage);
+		if (ret != DOVER_OK)
+			LogMessage("Error creating Dover XY stage instance.");
+		g_doverInstanceCounter++;
+	}
+	else
+		return ERR_DOVER_API_INSTANCE;
+
 	if (!xyStage)
 		return ERR_DOVER_INITIALIZE;
 
@@ -453,6 +456,11 @@ int CDoverXYStage::Initialize()
 	CreateProperty(g_Prop_MoveDistancePerPulse, "0.0", MM::Float, false, pAct);
 	SetPropertyLimits(g_Prop_MoveDistancePerPulse, 0.0, 2.0); // safety limit to 2 um
 
+	pAct = new CPropertyAction(this, &CDoverXYStage::OnActive);
+	CreateProperty(g_Prop_Active, "1", MM::Integer, false, pAct);
+	SetPropertyLimits(g_Prop_Active, 0, 1);
+	g_active = true;
+
 	UpdateStatus();
 	initialized = true;
 
@@ -461,7 +469,29 @@ int CDoverXYStage::Initialize()
 
 int CDoverXYStage::Shutdown()
 {
+	if (!initialized)
+		return DEVICE_OK;
+
+	int ret = dover.destroy_xy_stage(xyStage);
+	if (ret != DOVER_OK)
+		LogMessage("Error destroying Dover XY stage instance.");
+	xyStage = nullptr;
+
+	g_doverInstanceCounter--;
+	g_doverInstanceCounter = max(0, g_doverInstanceCounter);
+
+	// last instance releases the API
+	if (g_doverInstanceCounter == 0)
+	{
+		ret = dover.destroy_api_instance(g_apiInstance);
+		if (ret != DOVER_OK)
+			LogMessage("Error destroying DoverAPI instance.");
+
+		g_apiInstance = nullptr;
+	}
+
 	initialized = false;
+	g_active = false;
 	return DEVICE_OK;
 }
 
@@ -640,4 +670,33 @@ int CDoverXYStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionTyp
 
 	return DEVICE_OK;
 }
+
+int CDoverXYStage::OnActive(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(g_active ? 1L : 0L);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long val;
+		pProp->Get(val);
+		if (val)
+		{
+			int ret = Initialize();
+			if (ret != DEVICE_OK)
+				return ret;
+		}
+		else
+		{
+			int ret = Shutdown();
+			if (ret != DEVICE_OK)
+				return ret;
+		}
+	}
+
+	return DEVICE_OK;
+
+}
+
 
