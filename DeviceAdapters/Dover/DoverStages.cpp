@@ -51,6 +51,17 @@ int loadDoverDLL()
 
 CDoverStage::CDoverStage() : initialized(false), zStage(nullptr)
 {
+	SetErrorText(ERR_DOVER_CMD_FAILED, "Stage command failed. See log file for more info.");
+	SetErrorText(ERR_DOVER_HOME_FAILED, "Stage Home function failed.");
+	SetErrorText(ERR_DOVER_LIMITS_EXCEEDED, "Stage limits exceeded.");
+	SetErrorText(ERR_DOVER_INITIALIZE, "Stage failed to initialize. See log file for more info.");
+	SetErrorText(ERR_DOVER_ACTIVE, "Stage is suspended (not active).");
+	SetErrorText(ERR_DOVER_DLL_LOAD, "Dover DLL failed to load.");
+	SetErrorText(ERR_DOVER_DLL_FUNCTION_LOAD, "Unable to load functions from Dover DLL. Probably version mismatch.");
+	SetErrorText(ERR_DOVER_SUSPENDED, "Stage is suspended (not active).");
+	SetErrorText(ERR_DOVER_API_INSTANCE, "Failed to connect to Dover API.");
+
+
 	if (!hDLL)
 	{
 		int ret = loadDoverDLL();
@@ -368,6 +379,15 @@ int CDoverStage::OnActive(MM::PropertyBase* pProp, MM::ActionType eAct)
 //
 CDoverXYStage::CDoverXYStage() : initialized(false), xyStage(nullptr)
 {
+	SetErrorText(ERR_DOVER_CMD_FAILED, "Stage command failed. See log file for more info.");
+	SetErrorText(ERR_DOVER_HOME_FAILED, "Stage Home function failed.");
+	SetErrorText(ERR_DOVER_LIMITS_EXCEEDED, "Stage limits exceeded.");
+	SetErrorText(ERR_DOVER_INITIALIZE, "Stage failed to initialize. See log file for more info.");
+	SetErrorText(ERR_DOVER_DLL_LOAD, "Dover DLL failed to load.");
+	SetErrorText(ERR_DOVER_DLL_FUNCTION_LOAD, "Unable to load functions from Dover DLL. Probably version mismatch.");
+	SetErrorText(ERR_DOVER_SUSPENDED, "Stage is suspended (not active).");
+	SetErrorText(ERR_DOVER_API_INSTANCE, "Failed to connect to Dover API.");
+
 	if (!hDLL)
 	{
 		int ret = loadDoverDLL();
