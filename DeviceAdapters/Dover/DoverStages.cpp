@@ -392,7 +392,10 @@ CDoverXYStage::~CDoverXYStage()
 
 bool CDoverXYStage::Busy()
 {
-	return dover.is_busy(xyStage) != 0;
+	if (g_active)
+		return dover.is_busy(xyStage) != 0;
+	else
+		return false;
 }
 
 void CDoverXYStage::GetName(char* pszName) const
@@ -502,6 +505,9 @@ double CDoverXYStage::GetStepSize()
 
 int CDoverXYStage::SetPositionSteps(long x, long y)
 {
+	if (!g_active)
+		return ERR_DOVER_ACTIVE;
+
 	double xposUm = x * g_umPerStep;
 	double yposUm = y * g_umPerStep;
 
@@ -525,24 +531,35 @@ int CDoverXYStage::SetPositionSteps(long x, long y)
 
 int CDoverXYStage::GetPositionSteps(long& x, long& y)
 {
-	double doverXPos, doverYPos;
-	int ret = dover.get_position(xyStage, 0, &doverXPos);
-	if (ret != DOVER_OK)
-		return ret;
-	ret = dover.get_position(xyStage, 1, &doverYPos);
-	if (ret != DOVER_OK)
-		return ret;
+	if (g_active)
+	{
+		double doverXPos, doverYPos;
+		int ret = dover.get_position(xyStage, 0, &doverXPos);
+		if (ret != DOVER_OK)
+			return ret;
+		ret = dover.get_position(xyStage, 1, &doverYPos);
+		if (ret != DOVER_OK)
+			return ret;
 
-	auto xposUm = doverXPos * 1000.0;
-	x = (long)(xposUm / g_umPerStep + 0.5);
-	auto yposUm = doverYPos * 1000.0;
-	y = (long)(yposUm / g_umPerStep + 0.5);
+		auto xposUm = doverXPos * 1000.0;
+		x = (long)(xposUm / g_umPerStep + 0.5);
+		auto yposUm = doverYPos * 1000.0;
+		y = (long)(yposUm / g_umPerStep + 0.5);
+	}
+	else
+	{
+		x = 0L;
+		y = 0L;
+	}
 
 	return DEVICE_OK;
 }
 
 int CDoverXYStage::Home()
 {
+	if (!g_active)
+		return ERR_DOVER_ACTIVE;
+
 	int ret = dover.home(xyStage);
 	if (ret != DOVER_OK)
 		return ret;
@@ -594,14 +611,20 @@ int CDoverXYStage::OnPositionX(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	if (eAct == MM::BeforeGet)
 	{
-		double pos;
-		int ret = dover.get_position(xyStage, 0, &pos);
-		if (ret != DOVER_OK)
-			return ret;
+		double pos(0.0);
+		if (g_active)
+		{
+			int ret = dover.get_position(xyStage, 0, &pos);
+			if (ret != DOVER_OK)
+				return ret;
+		}
 		pProp->Set(pos * 1000.0);
 	}
 	else if (eAct == MM::AfterSet)
 	{
+		if (!g_active)
+			return ERR_DOVER_ACTIVE;
+
 		long pos;
 		pProp->Get(pos);
 		int ret = dover.set_position(xyStage, 0, pos / 1000.0);
@@ -616,14 +639,20 @@ int CDoverXYStage::OnPositionY(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	if (eAct == MM::BeforeGet)
 	{
-		double pos;
-		int ret = dover.get_position(xyStage, 1, &pos);
-		if (ret != DOVER_OK)
-			return ret;
+		double pos(0.0);
+		if (g_active)
+		{
+			int ret = dover.get_position(xyStage, 1, &pos);
+			if (ret != DOVER_OK)
+				return ret;
+		}
 		pProp->Set(pos * 1000.0);
 	}
 	else if (eAct == MM::AfterSet)
 	{
+		if (!g_active)
+			return ERR_DOVER_ACTIVE;
+
 		long pos;
 		pProp->Get(pos);
 		int ret = dover.set_position(xyStage, 1, pos / 1000.0);
@@ -639,22 +668,28 @@ int CDoverXYStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionTyp
 	if (eAct == MM::BeforeGet)
 	{
 		double stepUm(0.0);
-		try
+		if (g_active)
 		{
-			const bool forceRefresh(true);
-			dover.get_external_control(xyStage, forceRefresh, &stepUm);
-			stepUm *= 1000; // convert from mm to um
-		}
-		catch (std::exception& e)
-		{
-			LogMessage(e.what());
-			return ERR_DOVER_CMD_FAILED;
+			try
+			{
+				const bool forceRefresh(true);
+				dover.get_external_control(xyStage, forceRefresh, &stepUm);
+				stepUm *= 1000; // convert from mm to um
+			}
+			catch (std::exception& e)
+			{
+				LogMessage(e.what());
+				return ERR_DOVER_CMD_FAILED;
+			}
 		}
 
 		pProp->Set(stepUm);
 	}
 	else if (eAct == MM::AfterSet)
 	{
+		if (!g_active)
+			return ERR_DOVER_ACTIVE;
+
 		double stepUm;
 		pProp->Get(stepUm);
 		try
