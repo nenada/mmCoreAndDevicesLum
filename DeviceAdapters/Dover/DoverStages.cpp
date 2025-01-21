@@ -132,7 +132,25 @@ int CDoverStage::Initialize()
 
 	int ret = dover.initialize(zStage);
 	if (ret != DOVER_OK)
+	{
+		// if init did not work, reverse the previous steps
+		dover.destroy_z_stage(g_apiInstance);
+		
+		g_doverInstanceCounter--;
+		g_doverInstanceCounter = max(0, g_doverInstanceCounter);
+
+		// last instance releases the API
+		if (g_doverInstanceCounter == 0)
+		{
+			ret = dover.destroy_api_instance(g_apiInstance);
+			if (ret != DOVER_OK)
+				LogMessage("Error destroying DoverAPI instance.");
+
+			g_apiInstance = nullptr;
+		}
+
 		return ret;
+	}
 
 	auto pAct = new CPropertyAction(this, &CDoverStage::OnPosition);
 	CreateProperty(MM::g_Keyword_Position, "0", MM::Float, false, pAct);
@@ -434,14 +452,6 @@ int CDoverXYStage::Initialize()
 		g_doverInstanceCounter = 0;
 	}
 
-	if (g_apiInstance == nullptr)
-	{
-		int ret = dover.create_api_instance(&g_apiInstance);
-		if (ret != DOVER_OK)
-			LogMessage("Error creating DoverAPI instance.");
-		g_doverInstanceCounter = 0;
-	}
-
 	// create xy stage
 	if (g_apiInstance)
 	{
@@ -458,7 +468,24 @@ int CDoverXYStage::Initialize()
 
 	int ret = dover.initialize(xyStage);
 	if (ret != DOVER_OK)
+	{
+		// if init did not work, reverse the initialization
+		dover.destroy_xy_stage(g_apiInstance);
+		g_doverInstanceCounter--;
+		g_doverInstanceCounter = max(0, g_doverInstanceCounter);
+
+		// last instance releases the API
+		if (g_doverInstanceCounter == 0)
+		{
+			ret = dover.destroy_api_instance(g_apiInstance);
+			if (ret != DOVER_OK)
+				LogMessage("Error destroying DoverAPI instance.");
+
+			g_apiInstance = nullptr;
+		}
+
 		return ret;
+	}
 
 	// TODO: define property for trigger value
 	ret = dover.xy_set_digital_trigger(xyStage, 1); // corresponds to "InMotion"
