@@ -174,7 +174,7 @@ int OkolabDevice::Initialize()
 	}
 }
 
-void OkolabDevice::LogOkolabError(oko_res_type err, std::string title)
+void OkolabDevice::LogOkolabError(oko_res_type err, std::string title, bool debugOnly)
 {
 	std::string errMessage = "";
 	char msg_err[ERR_MSG_SIZE] = "";
@@ -189,7 +189,7 @@ void OkolabDevice::LogOkolabError(oko_res_type err, std::string title)
 	{
 		errMessage += ". Error: " + std::string(msg_err);
 	}
-	LogMessage(errMessage, false);
+	LogMessage(errMessage, debugOnly);
 }
 
 int OkolabDevice::initializeVersionAndDetectPorts()
@@ -751,7 +751,7 @@ int OkolabDevice::updateOkolabProperties(MM::MMTime startTime)
 		ret = oko_PropertiesGetNumber(_deviceHandle, &num);
 		if (ret != OKO_OK)
 		{
-			LogOkolabError(ret, "Property Changed");
+			LogOkolabError(ret, "Property Changed", true);
 			num = 0;
 		}
 		for (uint32_t i = 0; i < num; ++i)
@@ -764,7 +764,7 @@ int OkolabDevice::updateOkolabProperties(MM::MMTime startTime)
 			ret = oko_PropertyGetName(_deviceHandle, i, name);
 			if (ret != OKO_OK)
 			{
-				LogOkolabError(ret, "Property Changed");
+				LogOkolabError(ret, "Property Changed", true);
 				continue;
 			}
 			if (propertyLocked(name))
@@ -774,7 +774,7 @@ int OkolabDevice::updateOkolabProperties(MM::MMTime startTime)
 			ret = oko_PropertyUpdate(_deviceHandle, name);
 			if (ret != OKO_OK)
 			{
-				LogOkolabError(ret, "Property Changed");
+				LogOkolabError(ret, "Property Changed", true);
 			}
 
 			char value[PROP_VAL_SIZE] = "";			
@@ -787,7 +787,7 @@ int OkolabDevice::updateOkolabProperties(MM::MMTime startTime)
 					ret = oko_PropertyReadString(_deviceHandle, name, value);
 					if (ret != OKO_OK)
 					{
-						LogOkolabError(ret, "Property Changed");
+						LogOkolabError(ret, "Property Changed", true);
 						std::ostringstream oss;
 						oss << "ERROR " << (int) ret;
 						strcpy(value, oss.str().c_str());						
@@ -800,7 +800,7 @@ int OkolabDevice::updateOkolabProperties(MM::MMTime startTime)
 					ret = oko_PropertyReadDouble(_deviceHandle, name, &v);
 					if (ret != OKO_OK)
 					{
-						LogOkolabError(ret, "Property Changed");
+						LogOkolabError(ret, "Property Changed", true);
 						std::ostringstream oss;
 						oss << "ERROR " << (int) ret;
 						strcpy(value, oss.str().c_str());
@@ -827,7 +827,7 @@ int OkolabDevice::updateOkolabProperties(MM::MMTime startTime)
 					ret = oko_PropertyReadInt(_deviceHandle, name, &v);
 					if (ret != OKO_OK)
 					{
-						LogOkolabError(ret, "Property Changed");
+						LogOkolabError(ret, "Property Changed", true);
 						std::ostringstream oss;
 						oss << "ERROR " << (int) ret;
 						strcpy(value, oss.str().c_str());
@@ -847,7 +847,7 @@ int OkolabDevice::updateOkolabProperties(MM::MMTime startTime)
 	}
 
 	Sleep(_timeBetweenUpdates);
-	LogMessage("updateProperties");
+	LogMessage("updateProperties", true);
 	return DEVICE_OK;
 }
 

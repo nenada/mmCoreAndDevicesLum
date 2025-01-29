@@ -51,7 +51,7 @@ private:
 	bool propertyLocked(const std::string &propertyName);
 
 private:
-	void LogOkolabError(oko_res_type err, std::string title);
+	void LogOkolabError(oko_res_type err, std::string title, bool debugOnly=false);
 	int translateError(oko_res_type ret);
 	void createLoggerAndPlaybackFileProperties();
 	std::string createPropertyError(oko_res_type ret);
