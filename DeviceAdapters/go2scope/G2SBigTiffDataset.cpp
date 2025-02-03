@@ -166,6 +166,7 @@ void G2SBigTiffDataset::load(const std::string& path, bool dio)
 		dsname = dsname.substr(0, dsname.size() - 4);
 
 	// Enumerate files
+	std::vector<std::uint32_t> dcindex;
 	for(const auto& entry : std::filesystem::directory_iterator(xp))
 	{
 		// Skip auto folder paths
@@ -187,10 +188,49 @@ void G2SBigTiffDataset::load(const std::string& path, bool dio)
 		if(fext != "tiff" && fext != "tif" && fext != "g2s.tiff" && fext != "g2s.tif")
 			continue;
 
-		// We found a supported file type -> Add to results list
+		// Determine absolute path and create chunk descriptor
 		auto abspath = std::filesystem::absolute(entry).u8string();
 		auto dchunk = std::make_shared<G2SBigTiffStream>(abspath, directIo);
-		datachunks.push_back(dchunk);
+
+		// Determine chunk index from a file name
+		std::uint32_t cind = 0;
+		auto findtoken = fname.substr(0, fname.length() - fext.size() - 1);
+		if(findtoken.find(".g2s") != std::string::npos)
+			findtoken = findtoken.substr(0, fname.find(".g2s"));
+		if(findtoken.find(dsname) == 0)
+			findtoken = findtoken.substr(dsname.length());		
+		if(!findtoken.empty())
+		{
+			if(findtoken[0] == '_')
+				findtoken = findtoken.substr(1);
+			try { cind = std::stoul(findtoken);	} catch(...) { }
+		}
+
+		// Check if chunk index is valid and determine insert index
+		std::int64_t iind = -1;
+		for(std::size_t i = 0; i < dcindex.size(); i++)
+		{
+			if(dcindex[i] >= cind)
+			{
+				iind = (std::int64_t)i;
+				break;
+			}
+		}
+		if(iind < 0)
+		{
+			datachunks.push_back(dchunk);
+			dcindex.push_back(cind);
+		}
+		else
+		{
+			auto cit = datachunks.begin();
+			std::advance(cit, iind);
+			auto iit = dcindex.begin();
+			std::advance(iit, iind);
+
+			datachunks.insert(cit, dchunk);
+			dcindex.insert(iit, cind);
+		}
 	}
 	if(datachunks.empty())
 		throw std::runtime_error("Unable to load a dataset. No files found");
@@ -725,6 +765,11 @@ void G2SBigTiffDataset::validateDataChunk(std::uint32_t chunkind, bool index)
 	{
 		datachunks[chunkind]->close();
 		throw std::runtime_error("Invalid data chunk. Pixel format missmatch");
+	}
+	if(datachunks[chunkind]->getChunkIndex() > 0 && datachunks[chunkind]->getChunkIndex() != chunkind)
+	{
+		datachunks[chunkind]->close();
+		throw std::runtime_error("Invalid data chunk. Chunk index missmatch");
 	}
 }
 
