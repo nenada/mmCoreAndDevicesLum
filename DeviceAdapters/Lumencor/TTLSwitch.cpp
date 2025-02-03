@@ -512,15 +512,15 @@ int CTTLSwitch::OnState(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
    if (eAct == MM::BeforeGet)
    {
-		LogMessage(">>>OnState-BeforeGet");
+		LogMessage(">>>OnState-BeforeGet", true);
 		pProp->Set((long)currentChannel);
 		ostringstream os;
 		os << ">>>Current channel :" << currentChannel;
-		LogMessage(os.str());
+		LogMessage(os.str(), true);
    }
    else if (eAct == MM::AfterSet)
    {
-		LogMessage(">>>OnState-AfterSet");
+		LogMessage(">>>OnState-AfterSet", true);
 		// get channel
 		long channelIndex;
 		pProp->Get(channelIndex);
@@ -538,7 +538,7 @@ int CTTLSwitch::OnState(MM::PropertyBase* pProp, MM::ActionType eAct)
 		currentChannel = channelIndex;
 		ostringstream os;
 		os << ">>>Set current channel :" << currentChannel;
-		LogMessage(os.str());
+		LogMessage(os.str(), true);
    }
    return DEVICE_OK;
 }
@@ -653,7 +653,7 @@ int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
 
    if (eAct == MM::AfterSet)
    {
-		LogMessage(">>>OnChannelIntensity-AfterSet");
+		LogMessage(">>>OnChannelIntensity-AfterSet", true);
       long val;
       pProp->Get(val);
 		if (!demo)
@@ -664,11 +664,11 @@ int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
 		}
 		ostringstream os;
 		os << ">>>Set intensity :" << val;
-		LogMessage(os.str());
+		LogMessage(os.str(), true);
    }
    else if (eAct == MM::BeforeGet)
    {
-		LogMessage(">>>OnChannelIntensity-BeforGet");
+		LogMessage(">>>OnChannelIntensity-BeforGet", true);
       int inten(0);
 		if (!demo)
 		{
@@ -680,7 +680,7 @@ int CTTLSwitch::OnChannelIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
       pProp->Set((long)inten);
 		ostringstream os;
 		os << ">>>Current intensity :" << inten;
-		LogMessage(os.str());
+		LogMessage(os.str(), true);
 
    }
    return DEVICE_OK;
@@ -724,7 +724,7 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 	
 	if (eAct == MM::AfterSet)
 	{
-		LogMessage(">>>OnChanneExposure-AfterSet");
+		LogMessage(">>>OnChanneExposure-AfterSet", true);
 		double val;
 		pProp->Get(val);
 		it->second.exposureMs = val;
@@ -738,7 +738,7 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 		}
 		ostringstream os;
 		os << ">>>Set exposure :" << it->second.exposureMs;
-		LogMessage(os.str());
+		LogMessage(os.str(), true);
 	}
 	else if (eAct == MM::BeforeGet)
 	{
@@ -746,7 +746,7 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 		pProp->Set(it->second.exposureMs);
 		ostringstream os;
 		os << ">>>Current exposure :" << it->second.exposureMs;
-		LogMessage(os.str());
+		LogMessage(os.str(), true);
 	}
 
 	return DEVICE_OK;
