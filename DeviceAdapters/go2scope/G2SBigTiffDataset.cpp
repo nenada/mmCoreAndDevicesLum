@@ -165,6 +165,55 @@ void G2SBigTiffDataset::load(const std::string& path, bool dio)
 	if(dsname.find(".g2s") == dsname.size() - 4)
 		dsname = dsname.substr(0, dsname.size() - 4);
 
+	// Determine file name prefix
+	std::string fprefix = "";
+	for(const auto& entry : std::filesystem::directory_iterator(xp))
+	{
+		// Skip auto folder paths
+		auto fname = entry.path().filename().u8string();
+		if(fname == "." || fname == "..")
+			continue;
+
+		// Skip folders
+		if(std::filesystem::is_directory(entry))
+			continue;
+
+		// Skip unsupported file formats
+		auto fext = entry.path().extension().u8string();
+		if(fext.size() == 0)
+			continue;
+		if(fext[0] == '.')
+			fext = fext.substr(1);
+		std::transform(fext.begin(), fext.end(), fext.begin(), [](char c) { return (char)tolower(c); });
+		if(fext != "tiff" && fext != "tif" && fext != "g2s.tiff" && fext != "g2s.tif")
+			continue;
+
+		auto fx = fname.substr(0, fname.length() - fext.size() - 1);
+		if(fx.find(".g2s") != std::string::npos)
+			fx = fx.substr(0, fname.find(".g2s"));
+
+		if(fprefix.empty())
+			// First file -> use the entire file name
+			fprefix = fx;
+		else if(fx.find(fprefix) == 0)
+			// File name starts with the file prefix
+			continue;
+		else
+		{
+			// File prefix is invalid -> Try shorter file prefix
+			auto lind = fprefix.find_last_of('_');
+			while(lind != std::string::npos)
+			{
+				fprefix = fprefix.substr(0, lind);
+				if(fx.find(fprefix) == 0)
+					break;
+				lind = fprefix.find_last_of('_');
+			}
+			if(fx.find(fprefix) != 0)
+				throw std::runtime_error("Unable to load a dataset. Data chunk file name missmatch");
+		}
+	}
+
 	// Enumerate files
 	std::vector<std::uint32_t> dcindex;
 	for(const auto& entry : std::filesystem::directory_iterator(xp))
@@ -197,8 +246,7 @@ void G2SBigTiffDataset::load(const std::string& path, bool dio)
 		auto findtoken = fname.substr(0, fname.length() - fext.size() - 1);
 		if(findtoken.find(".g2s") != std::string::npos)
 			findtoken = findtoken.substr(0, fname.find(".g2s"));
-		if(findtoken.find(dsname) == 0)
-			findtoken = findtoken.substr(dsname.length());		
+		findtoken = findtoken.substr(fprefix.length());
 		if(!findtoken.empty())
 		{
 			if(findtoken[0] == '_')
@@ -236,17 +284,25 @@ void G2SBigTiffDataset::load(const std::string& path, bool dio)
 		throw std::runtime_error("Unable to load a dataset. No files found");
 
 	// Load first data chunk
-	samples = 1;
-	imgcounter = 0;
-	metadata.clear();
-	custommeta.clear();
-	activechunk = datachunks.front();
-	activechunk->open(false);
-	activechunk->parse(datasetuid, shape, chunksize, metadata, bitdepth);
-	imgcounter += activechunk->getImageCount();
-	resetAxisInfo();
-	parseAxisInfo();
-	parseCustomMetadata();
+	try
+	{
+		samples = 1;
+		imgcounter = 0;
+		metadata.clear();
+		custommeta.clear();
+		activechunk = datachunks.front();
+		activechunk->open(false);
+		activechunk->parse(datasetuid, shape, chunksize, metadata, bitdepth);
+		imgcounter += activechunk->getImageCount();
+		resetAxisInfo();
+		parseAxisInfo();
+		parseCustomMetadata();
+	}
+	catch(std::exception&)
+	{
+		close();
+		throw;
+	}
 
 	// Validate dataset parameters
 	if(activechunk->getChunkIndex() != 0)
@@ -271,11 +327,19 @@ void G2SBigTiffDataset::load(const std::string& path, bool dio)
 	}
 
 	// Parse headers for other data chunks
-	for(std::size_t i = 1; i < datachunks.size(); i++)
+	try
 	{
-		validateDataChunk((std::uint32_t)i, false);
-		imgcounter += datachunks[i]->getImageCount();
-		datachunks[i]->close();
+		for(std::size_t i = 1; i < datachunks.size(); i++)
+		{
+			validateDataChunk((std::uint32_t)i, false);
+			imgcounter += datachunks[i]->getImageCount();
+			datachunks[i]->close();
+		}
+	}
+	catch(std::exception&)
+	{
+		close();
+		throw;
 	}
 }
 
