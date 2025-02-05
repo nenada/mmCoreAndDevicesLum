@@ -148,8 +148,8 @@ int StorageInstance::AppendImage(const char* handle, int sizeInBytes, unsigned c
 int StorageInstance::GetSummaryMeta(const char* handle, std::string& meta)
 {
 	//char* cMeta(nullptr);
-	char cMeta[MM::MaxStrLength];
-	memset(cMeta, 0, MM::MaxStrLength);
+	char cMeta[MM::MaxMetadataLength];
+	memset(cMeta, 0, MM::MaxMetadataLength);
    RequireInitialized(__func__);
    int ret = GetImpl()->GetSummaryMeta(handle, cMeta);
    if (ret == DEVICE_OK)
@@ -164,8 +164,8 @@ int StorageInstance::GetSummaryMeta(const char* handle, std::string& meta)
 int StorageInstance::GetImageMeta(const char* handle, const std::vector<int>& coordinates, std::string& meta)
 {
 	//char* cMeta(nullptr);
-	char cMeta[MM::MaxStrLength];
-	memset(cMeta, 0, MM::MaxStrLength);
+	char cMeta[MM::MaxMetadataLength];
+	memset(cMeta, 0, MM::MaxMetadataLength);
    RequireInitialized(__func__);
    int ret = GetImpl()->GetImageMeta(handle, const_cast<int*>(&coordinates[0]), (int)coordinates.size(), cMeta);
    if (ret == DEVICE_OK)
@@ -180,8 +180,8 @@ int StorageInstance::GetImageMeta(const char* handle, const std::vector<int>& co
 int StorageInstance::GetCustomMeta(const char* handle, const std::string& key, std::string& meta)
 {
    //char* cMeta(nullptr);
-	char cMeta[MM::MaxStrLength];
-	memset(cMeta, 0, MM::MaxStrLength);
+	char cMeta[MM::MaxMetadataLength];
+	memset(cMeta, 0, MM::MaxMetadataLength);
    RequireInitialized(__func__);
    int ret = GetImpl()->GetCustomMetadata(handle, key.c_str(), cMeta);
    if (ret == DEVICE_OK)

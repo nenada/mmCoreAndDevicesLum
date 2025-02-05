@@ -709,12 +709,14 @@ int G2SBigTiffStorage::GetSummaryMeta(const char* handle, char* meta) noexcept
 		auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
 		//meta = new char[fs->getMetadata().size() + 1];
 		//strncpy(meta, fs->getMetadata().c_str(), fs->getMetadata().size() + 1);
-		strncpy(meta, fs->getMetadata().c_str(), MM::MaxStrLength);
+		if(fs->getMetadata().size() >= MM::MaxMetadataLength)
+			return ERR_TIFF_STRING_TOO_LONG;
+		strncpy(meta, fs->getMetadata().c_str(), fs->getMetadata().size());
 		return DEVICE_OK;
 	}
 	catch(std::exception& e)
 	{
-		LogMessage("GetSummaryMeta error: " +std::string(e.what()));
+		LogMessage("GetSummaryMeta error: " + std::string(e.what()));
 		return ERR_TIFF_CORRUPTED_METADATA;
 	}
 }
@@ -760,6 +762,8 @@ int G2SBigTiffStorage::GetImageMeta(const char* handle, int coordinates[], int n
 	try
 	{
 		auto fmeta = fs->getImageMetadata(coords);
+		if(fmeta.size() >= MM::MaxMetadataLength)
+			return ERR_TIFF_STRING_TOO_LONG;
 		//meta = new char[fmeta.size() + 1];
 		//strncpy(meta, fmeta.c_str(), fmeta.size() + 1);
 		strncpy(meta, fmeta.c_str(), fmeta.size());
@@ -767,7 +771,7 @@ int G2SBigTiffStorage::GetImageMeta(const char* handle, int coordinates[], int n
 	}
 	catch(std::exception& e)
 	{
-		LogMessage("GetImageMeta error: " +std::string(e.what()));
+		LogMessage("GetImageMeta error: " + std::string(e.what()));
 		return ERR_TIFF_CORRUPTED_METADATA;
 	}
 }
