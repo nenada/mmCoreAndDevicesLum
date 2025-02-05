@@ -707,8 +707,9 @@ int G2SBigTiffStorage::GetSummaryMeta(const char* handle, char* meta) noexcept
 	{
 		// Copy metadata string
 		auto fs = reinterpret_cast<G2SBigTiffDataset*>(it->second.FileHandle);
-		meta = new char[fs->getMetadata().size() + 1];
-		strncpy(meta, fs->getMetadata().c_str(), fs->getMetadata().size() + 1);
+		//meta = new char[fs->getMetadata().size() + 1];
+		//strncpy(meta, fs->getMetadata().c_str(), fs->getMetadata().size() + 1);
+		strncpy(meta, fs->getMetadata().c_str(), MM::MaxStrLength);
 		return DEVICE_OK;
 	}
 	catch(std::exception& e)
@@ -759,8 +760,9 @@ int G2SBigTiffStorage::GetImageMeta(const char* handle, int coordinates[], int n
 	try
 	{
 		auto fmeta = fs->getImageMetadata(coords);
-		meta = new char[fmeta.size() + 1];
-		strncpy(meta, fs->getMetadata().c_str(), fmeta.size() + 1);
+		//meta = new char[fmeta.size() + 1];
+		//strncpy(meta, fmeta.c_str(), fmeta.size() + 1);
+		strncpy(meta, fmeta.c_str(), fmeta.size());
 		return DEVICE_OK;
 	}
 	catch(std::exception& e)
