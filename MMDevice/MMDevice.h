@@ -1639,8 +1639,7 @@ namespace MM {
        * \param   imageMeta Image metadata string
        * \return  Status code indicating success or failure
        */
-      virtual int AppendImage(const char* handle, int sizeInBytes,
-         unsigned char* pixels, const char* imageMeta) = 0;
+      virtual int AppendImage(const char* handle, int sizeInBytes, unsigned char* pixels, const char* imageMeta) = 0;
 
       /**
        * \brief   Retrieves dataset summary metadata
@@ -1651,7 +1650,7 @@ namespace MM {
        *
        * \note    Caller must release the metadata buffer using ReleaseStringBuffer()
        */
-      virtual int GetSummaryMeta(const char* handle, char* meta) = 0;
+      virtual int GetSummaryMeta(const char* handle, char** meta) = 0;
 
       /**
        * \brief   Retrieves metadata for a specific image
@@ -1664,8 +1663,7 @@ namespace MM {
        *
        * \note    Caller must release the metadata buffer using ReleaseStringBuffer()
        */
-      virtual int GetImageMeta(const char* handle, int coordinates[],
-         int numCoordinates, char* meta) = 0;
+      virtual int GetImageMeta(const char* handle, int coordinates[], int numCoordinates, char** meta) = 0;
 
       /**
        * \brief   Retrieves image pixel data
@@ -1753,7 +1751,7 @@ namespace MM {
        * \return  Status code indicating success or failure
        * \note    Caller must release the content buffer using ReleaseStringBuffer()
        */
-      virtual int GetCustomMetadata(const char* handle, const char* key, char* content) = 0;
+      virtual int GetCustomMetadata(const char* handle, const char* key, char** content) = 0;
 
       /** \brief  Releases allocated string buffers
        * \details Must be called to free memory allocated by GetSummaryMeta,

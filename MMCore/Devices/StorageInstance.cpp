@@ -147,48 +147,42 @@ int StorageInstance::AppendImage(const char* handle, int sizeInBytes, unsigned c
 
 int StorageInstance::GetSummaryMeta(const char* handle, std::string& meta)
 {
-	//char* cMeta(nullptr);
-	char cMeta[MM::MaxMetadataLength];
-	memset(cMeta, 0, MM::MaxMetadataLength);
+	char* cMeta(nullptr);
    RequireInitialized(__func__);
-   int ret = GetImpl()->GetSummaryMeta(handle, cMeta);
+   int ret = GetImpl()->GetSummaryMeta(handle, &cMeta);
    if (ret == DEVICE_OK)
    {
       if (cMeta)
          meta = cMeta;
-      //GetImpl()->ReleaseStringBuffer(cMeta);
+      GetImpl()->ReleaseStringBuffer(cMeta);
    }
    return ret;
 }
 
 int StorageInstance::GetImageMeta(const char* handle, const std::vector<int>& coordinates, std::string& meta)
 {
-	//char* cMeta(nullptr);
-	char cMeta[MM::MaxMetadataLength];
-	memset(cMeta, 0, MM::MaxMetadataLength);
+	char* cMeta(nullptr);
    RequireInitialized(__func__);
-   int ret = GetImpl()->GetImageMeta(handle, const_cast<int*>(&coordinates[0]), (int)coordinates.size(), cMeta);
+   int ret = GetImpl()->GetImageMeta(handle, const_cast<int*>(&coordinates[0]), (int)coordinates.size(), &cMeta);
    if (ret == DEVICE_OK)
    {
       if (cMeta)
          meta = cMeta;
-      //GetImpl()->ReleaseStringBuffer(cMeta);
+      GetImpl()->ReleaseStringBuffer(cMeta);
    }
    return ret;
 }
 
 int StorageInstance::GetCustomMeta(const char* handle, const std::string& key, std::string& meta)
 {
-   //char* cMeta(nullptr);
-	char cMeta[MM::MaxMetadataLength];
-	memset(cMeta, 0, MM::MaxMetadataLength);
+   char* cMeta(nullptr);
    RequireInitialized(__func__);
-   int ret = GetImpl()->GetCustomMetadata(handle, key.c_str(), cMeta);
+   int ret = GetImpl()->GetCustomMetadata(handle, key.c_str(), &cMeta);
    if (ret == DEVICE_OK)
    {
       if (cMeta)
          meta = cMeta;
-      //GetImpl()->ReleaseStringBuffer(cMeta);
+      GetImpl()->ReleaseStringBuffer(cMeta);
    }
    return ret;
 }
