@@ -742,7 +742,7 @@ int CTTLSwitch::OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct)
 	}
 	else if (eAct == MM::BeforeGet)
 	{
-		LogMessage(">>>OnChanneExposure-BeforGet");
+		LogMessage(">>>OnChanneExposure-BeforGet", true);
 		pProp->Set(it->second.exposureMs);
 		ostringstream os;
 		os << ">>>Current exposure :" << it->second.exposureMs;

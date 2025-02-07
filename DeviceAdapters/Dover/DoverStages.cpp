@@ -24,6 +24,7 @@
 #include "Dover.h"
 #include "DoverAPI.h"
 #include "DeviceBase.h"
+#include <chrono>
 
 static int g_doverInstanceCounter(0);
 void* g_apiInstance = nullptr;
@@ -353,6 +354,17 @@ int CDoverStage::OnMoveDistancePerPulse(MM::PropertyBase* pProp, MM::ActionType 
 		try
 		{
 			dover.set_external_control(zStage, stepUm / 1000.0);
+			if (!wait(500))
+				LogMessage("Z stage timed out when setting external control");
+			LogMessage("Z stage external control: " + std::to_string(stepUm));
+
+			if (stepUm == 0.0)
+			{
+				dover.reset_position(zStage);
+				if (!wait(1000))
+					LogMessage("Z stage timed out while resetting position");
+				LogMessage("Z stage reset_position executed");
+			}
 		}
 		catch (std::exception& e)
 		{
@@ -390,6 +402,32 @@ int CDoverStage::OnActive(MM::PropertyBase* pProp, MM::ActionType eAct)
 
 	return DEVICE_OK;
 
+}
+
+bool CDoverStage::wait(int timeoutMs)
+{
+	// Get starting timepoint
+	auto start = std::chrono::high_resolution_clock::now();
+
+	long long elapsed = 0;
+	while (true) {
+		// Get current timepoint
+		auto current = std::chrono::high_resolution_clock::now();
+
+		// Calculate elapsed time in milliseconds
+		elapsed = std::chrono::duration_cast<std::chrono::milliseconds>
+			(current - start).count();
+
+		// Check if timeout has been reached
+		if (elapsed >= timeoutMs) {
+			return false;
+		}
+
+		if (!dover.is_busy(zStage))
+			break;
+	}
+	LogMessage("Z stage waited for :" + std::to_string(elapsed));
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
