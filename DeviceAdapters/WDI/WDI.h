@@ -26,6 +26,8 @@
 static const char* g_WDIStage = "WDIStage";
 static const char* g_Prop_SN = "SerialNumber";
 static const char* g_Prop_Firmware = "Firmware";
+static const char* g_Prop_Connection = "Connection";
+
 
 #define WDI_DEVICE_VERSION "1.0.0"
 
@@ -64,6 +66,7 @@ public:
    // action interface
    // ----------------
    int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    std::string connection;
