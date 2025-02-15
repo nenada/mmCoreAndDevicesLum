@@ -167,3 +167,8 @@ int CWDIStage::OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	return 0;
 }
+
+int CWDIStage::OnServiceStageLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	return 0;
+}
