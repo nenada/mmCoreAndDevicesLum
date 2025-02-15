@@ -22,6 +22,7 @@
 
 #define ERR_WDI_CMD_FAILED           71001
 #define ERR_WDI_INVALID_CONNECTION   71002
+#define ERR_WDI_SERVICE_STAGE        71003
 
 
 static const char* g_WDIStage = "WDIStage";
@@ -75,4 +76,8 @@ private:
    std::string connection;
    std::string dofStageName;
    bool initialized;
+   double stepSizeUm;
+   int currentStepPosition;
+
+   MM::Stage* GetServiceStage();
 };

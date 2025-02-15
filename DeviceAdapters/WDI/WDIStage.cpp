@@ -40,6 +40,7 @@ CWDIStage::CWDIStage() : initialized(false)
 	CPropertyAction* pAct = new CPropertyAction(this, &CWDIStage::OnConnection);
 	CreateProperty(g_Prop_Connection, "", MM::String, false, pAct, true);
 
+	stepSizeUm = 0.01; // this must be set up in the service stage
 }
 
 CWDIStage::~CWDIStage()
@@ -112,6 +113,9 @@ int CWDIStage::Initialize()
 	GetLimits(low, high);
 	SetPropertyLimits(MM::g_Keyword_Position, low, high);
 
+	// NOTE: is the initial position of the service stage 0?
+	currentStepPosition = 0;
+
 	UpdateStatus();
 	initialized = true;
 
@@ -155,7 +159,14 @@ int CWDIStage::GetPositionSteps(long& steps)
 
 int CWDIStage::GetLimits(double& lower, double& upper)
 {
-   return 0;
+	auto stage = GetServiceStage();
+	if (!stage)
+		return ERR_WDI_SERVICE_STAGE;
+	int ret = stage->GetLimits(lower, upper);
+	if (ret != DEVICE_OK)
+		return ret;
+
+   return DEVICE_OK;
 }
 
 int CWDIStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
@@ -171,4 +182,13 @@ int CWDIStage::OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct)
 int CWDIStage::OnServiceStageLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	return 0;
+}
+
+MM::Stage* CWDIStage::GetServiceStage()
+{
+	MM::Device* dev = GetCoreCallback()->GetDevice(this, dofStageName.c_str());
+	if (!dev)
+		return nullptr;
+	MM::Stage* stage = dynamic_cast<MM::Stage*>(dev);
+	return stage;
 }
