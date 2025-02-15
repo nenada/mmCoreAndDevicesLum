@@ -20,13 +20,15 @@
 // Error codes
 //
 
-#define ERR_WDI_CMD_FAILED           71005
+#define ERR_WDI_CMD_FAILED           71001
+#define ERR_WDI_INVALID_CONNECTION   71002
 
 
 static const char* g_WDIStage = "WDIStage";
 static const char* g_Prop_SN = "SerialNumber";
 static const char* g_Prop_Firmware = "Firmware";
 static const char* g_Prop_Connection = "Connection";
+static const char* g_Prop_ServiceStageLabel = "ServiceStage";
 
 
 #define WDI_DEVICE_VERSION "1.0.0"
@@ -67,6 +69,7 @@ public:
    // ----------------
    int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnServiceStageLabel(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    std::string connection;
