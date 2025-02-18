@@ -37,6 +37,7 @@ const map<string, int> ttlMap =
 	{"TEAL", 4},
 	{"BLUE", 5},
 	{"VIOLET", 6},
+	{"UV", 6},
 	{"NIR", 7},
 	{"YELLOW", 8},
 	{"SPR1", 9}
