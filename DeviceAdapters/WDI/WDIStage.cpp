@@ -30,7 +30,7 @@ std::vector<std::string> split(const std::string& str, char delimiter) {
 	return tokens;
 }
 
-CWDIStage::CWDIStage() : initialized(false), currentStepPosition(0), tracking(false)
+CWDIStage::CWDIStage() : initialized(false), currentStepPosition(0), tracking(false), laserEnable(false)
 {
 	SetErrorText(ERR_WDI_CMD_FAILED, "Command failed. See log file for more info.");
 
@@ -123,9 +123,16 @@ int CWDIStage::Initialize()
 
 	pAct = new CPropertyAction(this, &CWDIStage::OnTrack);
 	CreateProperty(g_Prop_Tracking, "0", MM::Integer, false, pAct);
+	SetPropertyLimits(g_Prop_Tracking, 0, 1);
+
+	pAct = new CPropertyAction(this, &CWDIStage::OnLaser);
+	CreateProperty(g_Prop_Laser, "0", MM::Integer, false, pAct);
+	SetPropertyLimits(g_Prop_Laser, 0, 1);
 
 	pAct = new CPropertyAction(this, &CWDIStage::OnMakeZero);
 	CreateProperty(g_Prop_MakeZero, "0", MM::Integer, false, pAct);
+	SetPropertyLimits(g_Prop_MakeZero, 0, 1);
+
 
 	UpdateStatus();
 	initialized = true;
@@ -149,6 +156,18 @@ int CWDIStage::SetPositionUm(double pos)
 {
 	int steps = (int)std::round(pos / g_umPerStep);
 	return SetPositionSteps(steps);
+}
+
+int CWDIStage::SetRelativePositionUm(double deltaPos)
+{
+	int deltaSteps = (int)std::round(deltaPos / g_umPerStep);
+
+	int ret = ATF_MoveZ(deltaSteps); // relative mode
+	if (ret != AfStatusOK)
+		return ret;
+	currentStepPosition += deltaSteps; // absolute position
+
+	return DEVICE_OK;
 }
 
 int CWDIStage::GetPositionUm(double& pos)
@@ -262,6 +281,35 @@ int CWDIStage::OnMakeZero(MM::PropertyBase* pProp, MM::ActionType eAct)
 	return DEVICE_OK;
 }
 
+int CWDIStage::OnLaser(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(laserEnable ? 1L : 0);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long val;
+		pProp->Get(val);
+		if (val == 1)
+		{
+			int ret = ATF_EnableLaser();
+			if (ret != AfStatusOK)
+				return ret;
+			laserEnable = true;
+		}
+		else
+		{
+			int ret = ATF_DisableLaser();
+			if (ret != AfStatusOK)
+				return ret;
+			laserEnable = false;
+		}
+	}
+
+	return DEVICE_OK;
+}
+
 int CWDIStage::OnTrack(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	if (eAct == MM::BeforeGet)
@@ -298,4 +346,10 @@ MM::Stage* CWDIStage::GetServiceStage()
 		return nullptr;
 	MM::Stage* stage = dynamic_cast<MM::Stage*>(dev);
 	return stage;
+}
+
+MM::Device* CWDIStage::GetServiceController()
+{
+	MM::Device* dev = GetCoreCallback()->GetDevice(this, afControllerName.c_str());
+	return dev;
 }

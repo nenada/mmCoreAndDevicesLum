@@ -30,8 +30,11 @@ static const char* g_Prop_SN = "SerialNumber";
 static const char* g_Prop_Firmware = "Firmware";
 static const char* g_Prop_Connection = "Connection";
 static const char* g_Prop_ServiceStageLabel = "ServiceStage";
+static const char* g_Prop_ServiceControllerLabel = "ServiceController";
+static const char* g_Prop_StepSizeUm = "StepSizeUm";
 static const char* g_Prop_MakeZero = "MakeZero";
 static const char* g_Prop_Tracking = "Tracking";
+static const char* g_Prop_Laser = "Laser";
 
 
 #define WDI_DEVICE_VERSION "1.0.0"
@@ -57,6 +60,7 @@ public:
    // Stage API
    int Home();
    int SetPositionUm(double pos);
+   int SetRelativePositionUm(double deltaPos);
    int GetPositionUm(double& pos);
    double GetStepSize();
    int SetPositionSteps(long steps);
@@ -75,14 +79,19 @@ public:
    int OnServiceStageLabel(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnMakeZero(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnTrack(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnLaser(MM::PropertyBase* pProp, MM::ActionType eAct);
+
 
 private:
    std::string connection;
    std::string dofStageName;
+   std::string afControllerName;
    bool initialized;
    double stepSizeUm;
    int currentStepPosition;
    bool tracking;
+   bool laserEnable;
 
    MM::Stage* GetServiceStage();
+   MM::Device* GetServiceController();
 };
