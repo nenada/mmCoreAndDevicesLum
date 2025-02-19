@@ -23,7 +23,8 @@
 #define ERR_WDI_CMD_FAILED           71001
 #define ERR_WDI_INVALID_CONNECTION   71002
 #define ERR_WDI_SERVICE_STAGE        71003
-
+#define ERR_WDI_AF_ENABLE            71004
+#define ERR_WDI_AF_CONTROLLER        71005
 
 static const char* g_WDIStage = "WDIStage";
 static const char* g_Prop_SN = "SerialNumber";
@@ -35,9 +36,11 @@ static const char* g_Prop_StepSizeUm = "StepSizeUm";
 static const char* g_Prop_MakeZero = "MakeZero";
 static const char* g_Prop_Tracking = "Tracking";
 static const char* g_Prop_Laser = "Laser";
+static const char* g_Prop_EnableAF = "AutoFocus";
 
 
-#define WDI_DEVICE_VERSION "1.0.0"
+
+#define WDI_DEVICE_VERSION "1.0.1"
 
 //////////////////////////////////////////////////////////////////////////////
 // WDIStage
@@ -77,10 +80,12 @@ public:
    int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnServiceStageLabel(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnServiceControllerLabel(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnMakeZero(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnStepSizeUm(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnTrack(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnLaser(MM::PropertyBase* pProp, MM::ActionType eAct);
-
+   int AutoFocus(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    std::string connection;
@@ -94,4 +99,6 @@ private:
 
    MM::Stage* GetServiceStage();
    MM::Device* GetServiceController();
+   int EnableAF(bool state);
+   int GetEnableAF(bool& state);
 };

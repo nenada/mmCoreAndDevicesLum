@@ -14,10 +14,6 @@
 #include "WDI.h"
 #include "atf_lib_exp.h"
 
-// distance per pulse. TODO: this should be a property
-const double g_umPerStep(0.1);
-
-
 std::vector<std::string> split(const std::string& str, char delimiter) {
 	std::vector<std::string> tokens;
 	std::stringstream ss(str);
@@ -48,7 +44,11 @@ CWDIStage::CWDIStage() : initialized(false), currentStepPosition(0), tracking(fa
 	pAct = new CPropertyAction(this, &CWDIStage::OnServiceStageLabel);
 	CreateProperty(g_Prop_ServiceStageLabel, "", MM::String, false, pAct,  true);
 
-	stepSizeUm = 0.01; // this must be set up in the service stage
+	// create af controller property
+	pAct = new CPropertyAction(this, &CWDIStage::OnServiceControllerLabel);
+	CreateProperty(g_Prop_ServiceControllerLabel, "", MM::String, false, pAct, true);
+
+	stepSizeUm = 0.01;
 }
 
 CWDIStage::~CWDIStage()
@@ -133,6 +133,9 @@ int CWDIStage::Initialize()
 	CreateProperty(g_Prop_MakeZero, "0", MM::Integer, false, pAct);
 	SetPropertyLimits(g_Prop_MakeZero, 0, 1);
 
+	pAct = new CPropertyAction(this, &CWDIStage::OnStepSizeUm);
+	CreateProperty(g_Prop_StepSizeUm, "0.1", MM::Float, false, pAct);
+	SetPropertyLimits(g_Prop_StepSizeUm, 0.01, 0.5);
 
 	UpdateStatus();
 	initialized = true;
@@ -154,13 +157,13 @@ int CWDIStage::Home()
 
 int CWDIStage::SetPositionUm(double pos)
 {
-	int steps = (int)std::round(pos / g_umPerStep);
+	int steps = (int)std::round(pos / stepSizeUm);
 	return SetPositionSteps(steps);
 }
 
 int CWDIStage::SetRelativePositionUm(double deltaPos)
 {
-	int deltaSteps = (int)std::round(deltaPos / g_umPerStep);
+	int deltaSteps = (int)std::round(deltaPos / stepSizeUm);
 
 	int ret = ATF_MoveZ(deltaSteps); // relative mode
 	if (ret != AfStatusOK)
@@ -174,13 +177,13 @@ int CWDIStage::GetPositionUm(double& pos)
 {
 	long steps;
 	GetPositionSteps(steps);
-	pos = steps * g_umPerStep;
+	pos = steps * stepSizeUm;
 	return DEVICE_OK;
 }
 
 double CWDIStage::GetStepSize()
 {
-   return g_umPerStep;
+   return stepSizeUm;
 }
 
 int CWDIStage::SetPositionSteps(long steps)
@@ -260,6 +263,20 @@ int CWDIStage::OnServiceStageLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
 	return DEVICE_OK;
 }
 
+int CWDIStage::OnServiceControllerLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(afControllerName.c_str());
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		pProp->Get(afControllerName);
+	}
+
+	return DEVICE_OK;
+}
+
 int CWDIStage::OnMakeZero(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	if (eAct == MM::BeforeGet)
@@ -276,6 +293,20 @@ int CWDIStage::OnMakeZero(MM::PropertyBase* pProp, MM::ActionType eAct)
 			if (ret != AfStatusOK)
 				return ret;
 		}
+	}
+
+	return DEVICE_OK;
+}
+
+int CWDIStage::OnStepSizeUm(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(stepSizeUm);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		pProp->Get(stepSizeUm);
 	}
 
 	return DEVICE_OK;
@@ -304,6 +335,33 @@ int CWDIStage::OnLaser(MM::PropertyBase* pProp, MM::ActionType eAct)
 			if (ret != AfStatusOK)
 				return ret;
 			laserEnable = false;
+		}
+	}
+
+	return DEVICE_OK;
+}
+
+int CWDIStage::AutoFocus(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		bool state;
+		int ret = GetEnableAF(state);
+		if (ret != DEVICE_OK)
+			return ret;
+		pProp->Set(state ? 1L : 0);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long val;
+		pProp->Get(val);
+		if (val == 1)
+		{
+			return EnableAF(true);
+		}
+		else
+		{
+			return EnableAF(false);
 		}
 	}
 
@@ -352,4 +410,39 @@ MM::Device* CWDIStage::GetServiceController()
 {
 	MM::Device* dev = GetCoreCallback()->GetDevice(this, afControllerName.c_str());
 	return dev;
+}
+
+int CWDIStage::EnableAF(bool state)
+{
+	auto controller = GetServiceController();
+	if (!controller)
+		return ERR_WDI_AF_CONTROLLER;
+
+	if (!controller->HasProperty(g_Prop_EnableAF))
+		return ERR_WDI_AF_ENABLE;
+
+	return controller->SetProperty(g_Prop_EnableAF, state ? "1" : "0");
+}
+
+int CWDIStage::GetEnableAF(bool& state)
+{
+	auto controller = GetServiceController();
+	if (!controller)
+		return ERR_WDI_AF_CONTROLLER;
+
+	if (!controller->HasProperty(g_Prop_EnableAF))
+		return ERR_WDI_AF_ENABLE;
+
+	char propVal[MM::MaxStrLength];
+	propVal[0] = 0;
+	int ret = controller->GetProperty(g_Prop_EnableAF, propVal);
+	if (ret != DEVICE_OK)
+		return ret;
+
+	if (propVal[0] == '1')
+		state = true;
+	else
+		state = false;
+
+	return DEVICE_OK;
 }
