@@ -14,6 +14,10 @@
 #include "WDI.h"
 #include "atf_lib_exp.h"
 
+// distance per pulse. TODO: this should be a property
+const double g_umPerStep(0.1);
+
+
 std::vector<std::string> split(const std::string& str, char delimiter) {
 	std::vector<std::string> tokens;
 	std::stringstream ss(str);
@@ -26,7 +30,7 @@ std::vector<std::string> split(const std::string& str, char delimiter) {
 	return tokens;
 }
 
-CWDIStage::CWDIStage() : initialized(false)
+CWDIStage::CWDIStage() : initialized(false), currentStepPosition(0)
 {
 	SetErrorText(ERR_WDI_CMD_FAILED, "Command failed. See log file for more info.");
 
@@ -50,7 +54,7 @@ CWDIStage::~CWDIStage()
 
 bool CWDIStage::Busy()
 {
-   // TODO:
+   // TODO: verify this
    return false;
 }
 
@@ -113,7 +117,7 @@ int CWDIStage::Initialize()
 	GetLimits(low, high);
 	SetPropertyLimits(MM::g_Keyword_Position, low, high);
 
-	// NOTE: is the initial position of the service stage 0?
+	// NOTE: we are assuming the stage is homed at this point
 	currentStepPosition = 0;
 
 	UpdateStatus();
@@ -124,37 +128,47 @@ int CWDIStage::Initialize()
 
 int CWDIStage::Shutdown()
 {
-   return 0;
+	ATF_CloseConnection();
+	ATF_closeLogFile();
+   return DEVICE_OK;
 }
 
 int CWDIStage::Home()
 {
-   return 0;
+   return DEVICE_UNSUPPORTED_COMMAND;
 }
 
 int CWDIStage::SetPositionUm(double pos)
 {
-   return 0;
+	int steps = std::round(pos / g_umPerStep);
+	return SetPositionSteps(steps);
 }
 
 int CWDIStage::GetPositionUm(double& pos)
 {
-   return 0;
+	long steps;
+	GetPositionSteps(steps);
+	return steps * g_umPerStep;
 }
 
 double CWDIStage::GetStepSize()
 {
-   return 0.0;
+   return g_umPerStep;
 }
 
 int CWDIStage::SetPositionSteps(long steps)
 {
-   return 0;
+	int ret = ATF_MoveZ(steps);
+	if (ret != AfStatusOK)
+		return ret;
+	currentStepPosition = steps;
+
+   return DEVICE_OK;
 }
 
 int CWDIStage::GetPositionSteps(long& steps)
 {
-   return 0;
+   return currentStepPosition;
 }
 
 int CWDIStage::GetLimits(double& lower, double& upper)
@@ -171,17 +185,50 @@ int CWDIStage::GetLimits(double& lower, double& upper)
 
 int CWDIStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-	return 0;
+	if (eAct == MM::BeforeGet)
+	{
+		double posUm;
+		int ret = GetPositionUm(posUm);
+		if (ret)
+			return ret;
+		pProp->Set(posUm);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		double pos;
+		pProp->Get(pos);
+		return SetPositionUm(pos);
+	}
+
+	return DEVICE_OK;
 }
 
 int CWDIStage::OnConnection(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-	return 0;
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(connection.c_str());
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		pProp->Get(connection);
+	}
+
+	return DEVICE_OK;
 }
 
 int CWDIStage::OnServiceStageLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-	return 0;
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(dofStageName.c_str());
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		pProp->Get(dofStageName);
+	}
+
+	return DEVICE_OK;
 }
 
 MM::Stage* CWDIStage::GetServiceStage()
