@@ -44,6 +44,10 @@ CWDIStage::CWDIStage() : initialized(false), currentStepPosition(0), tracking(fa
 	CPropertyAction* pAct = new CPropertyAction(this, &CWDIStage::OnConnection);
 	CreateProperty(g_Prop_Connection, "", MM::String, false, pAct, true);
 
+	// create child stage property
+	pAct = new CPropertyAction(this, &CWDIStage::OnServiceStageLabel);
+	CreateProperty(g_Prop_ServiceStageLabel, "", MM::String, false, pAct,  true);
+
 	stepSizeUm = 0.01; // this must be set up in the service stage
 }
 
@@ -65,9 +69,6 @@ void CWDIStage::GetName(char* pszName) const
 
 int CWDIStage::Initialize()
 {
-	// create child stage property
-	auto pAct = new CPropertyAction(this, &CWDIStage::OnServiceStageLabel);
-	CreateProperty(g_Prop_ServiceStageLabel, "", MM::String, false, pAct);
 
 	// connect
 	BOOL bret = ATF_openLogFile("atf_test.log", "w");
@@ -111,7 +112,7 @@ int CWDIStage::Initialize()
 	CreateProperty(g_Prop_Firmware, std::to_string(ver).c_str(), MM::Integer, true);
 	CreateProperty(g_Prop_SN, std::to_string(sensorSN).c_str(), MM::Integer, true);
 
-	pAct = new CPropertyAction(this, &CWDIStage::OnPosition);
+	auto pAct = new CPropertyAction(this, &CWDIStage::OnPosition);
 	CreateProperty(MM::g_Keyword_Position, "0", MM::Float, false, pAct);
 	double low, high;
 	GetLimits(low, high);
@@ -165,10 +166,11 @@ double CWDIStage::GetStepSize()
 
 int CWDIStage::SetPositionSteps(long steps)
 {
-	int ret = ATF_MoveZ(steps);
+	int delta = steps - currentStepPosition;
+	int ret = ATF_MoveZ(delta); // relative mode
 	if (ret != AfStatusOK)
 		return ret;
-	currentStepPosition = steps;
+	currentStepPosition += delta; // absolute position
 
    return DEVICE_OK;
 }
