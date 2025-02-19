@@ -30,7 +30,7 @@ std::vector<std::string> split(const std::string& str, char delimiter) {
 	return tokens;
 }
 
-CWDIStage::CWDIStage() : initialized(false), currentStepPosition(0)
+CWDIStage::CWDIStage() : initialized(false), currentStepPosition(0), tracking(false)
 {
 	SetErrorText(ERR_WDI_CMD_FAILED, "Command failed. See log file for more info.");
 
@@ -120,6 +120,12 @@ int CWDIStage::Initialize()
 	// NOTE: we are assuming the stage is homed at this point
 	currentStepPosition = 0;
 
+	pAct = new CPropertyAction(this, &CWDIStage::OnTrack);
+	CreateProperty(g_Prop_Tracking, "0", MM::Integer, false, pAct);
+
+	pAct = new CPropertyAction(this, &CWDIStage::OnMakeZero);
+	CreateProperty(g_Prop_MakeZero, "0", MM::Integer, false, pAct);
+
 	UpdateStatus();
 	initialized = true;
 
@@ -140,7 +146,7 @@ int CWDIStage::Home()
 
 int CWDIStage::SetPositionUm(double pos)
 {
-	int steps = std::round(pos / g_umPerStep);
+	int steps = (int)std::round(pos / g_umPerStep);
 	return SetPositionSteps(steps);
 }
 
@@ -148,7 +154,8 @@ int CWDIStage::GetPositionUm(double& pos)
 {
 	long steps;
 	GetPositionSteps(steps);
-	return steps * g_umPerStep;
+	pos = steps * g_umPerStep;
+	return DEVICE_OK;
 }
 
 double CWDIStage::GetStepSize()
@@ -168,7 +175,8 @@ int CWDIStage::SetPositionSteps(long steps)
 
 int CWDIStage::GetPositionSteps(long& steps)
 {
-   return currentStepPosition;
+   steps = currentStepPosition;
+	return DEVICE_OK;
 }
 
 int CWDIStage::GetLimits(double& lower, double& upper)
@@ -228,6 +236,56 @@ int CWDIStage::OnServiceStageLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
 		pProp->Get(dofStageName);
 	}
 
+	return DEVICE_OK;
+}
+
+int CWDIStage::OnMakeZero(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(0L);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long val;
+		pProp->Get(val);
+		if (val == 1)
+		{
+			int ret = ATF_Make0();
+			if (ret != AfStatusOK)
+				return ret;
+		}
+	}
+
+	return DEVICE_OK;
+}
+
+int CWDIStage::OnTrack(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(tracking ? 1L : 0L);
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long val;
+		pProp->Get(val);
+		if (val == 1)
+		{
+			int ret = ATF_AFTrack();
+			// start AF tracking first, once at focus continue on AOI tracking
+			if (ret != AfStatusOK)
+				return ret;
+			tracking = true;
+		}
+		else
+		{
+			int ret = ATF_AfStop();
+			if (ret != AfStatusOK)
+				return ret;
+			tracking = false;
+		}
+	}
 	return DEVICE_OK;
 }
 
