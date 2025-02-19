@@ -13,6 +13,7 @@
 //
 #include "WDI.h"
 #include "atf_lib_exp.h"
+#include <sstream>
 
 std::vector<std::string> split(const std::string& str, char delimiter) {
 	std::vector<std::string> tokens;
@@ -168,7 +169,13 @@ int CWDIStage::SetRelativePositionUm(double deltaPos)
 	int ret = ATF_MoveZ(deltaSteps); // relative mode
 	if (ret != AfStatusOK)
 		return ret;
+	long delayMs = (long)std::round(delayPerUmMs * abs(deltaSteps) * stepSizeUm);
+	Sleep(delayMs);
 	currentStepPosition += deltaSteps; // absolute position
+
+	std::ostringstream os;
+	os << ">>> Relative move deltaUm=" << deltaPos << ", deltaSteps=" << deltaSteps << ", currentStep=" << currentStepPosition;
+	LogMessage(os.str());
 
 	return DEVICE_OK;
 }
@@ -192,7 +199,13 @@ int CWDIStage::SetPositionSteps(long steps)
 	int ret = ATF_MoveZ(delta); // relative mode
 	if (ret != AfStatusOK)
 		return ret;
+	long delayMs = (long)std::round(delayPerUmMs * abs(delta) * stepSizeUm);
+	Sleep(delayMs);
 	currentStepPosition += delta; // absolute position
+
+	std::ostringstream os;
+	os << ">>> Absolute move steps=" << steps << ", deltaSteps=" << delta << ", currentStep=" << currentStepPosition;
+	LogMessage(os.str());
 
    return DEVICE_OK;
 }

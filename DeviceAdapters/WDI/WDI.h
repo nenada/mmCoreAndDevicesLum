@@ -96,6 +96,7 @@ private:
    int currentStepPosition;
    bool tracking;
    bool laserEnable;
+   const double delayPerUmMs = 0.2; // wait time per micron of movement
 
    MM::Stage* GetServiceStage();
    MM::Device* GetServiceController();
