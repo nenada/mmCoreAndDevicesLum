@@ -85,7 +85,7 @@ public:
    int OnStepSizeUm(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnTrack(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnLaser(MM::PropertyBase* pProp, MM::ActionType eAct);
-   int AutoFocus(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnAutoFocus(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    std::string connection;
@@ -96,7 +96,7 @@ private:
    int currentStepPosition;
    bool tracking;
    bool laserEnable;
-   const double delayPerUmMs = 0.2; // wait time per micron of movement
+   const double delayPerUmMs = 0.5; // wait time per micron of movement
 
    MM::Stage* GetServiceStage();
    MM::Device* GetServiceController();

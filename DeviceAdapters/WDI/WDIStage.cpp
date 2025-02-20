@@ -49,7 +49,7 @@ CWDIStage::CWDIStage() : initialized(false), currentStepPosition(0), tracking(fa
 	pAct = new CPropertyAction(this, &CWDIStage::OnServiceControllerLabel);
 	CreateProperty(g_Prop_ServiceControllerLabel, "", MM::String, false, pAct, true);
 
-	stepSizeUm = 0.01;
+	stepSizeUm = 0.1;
 }
 
 CWDIStage::~CWDIStage()
@@ -137,6 +137,8 @@ int CWDIStage::Initialize()
 	pAct = new CPropertyAction(this, &CWDIStage::OnStepSizeUm);
 	CreateProperty(g_Prop_StepSizeUm, "0.1", MM::Float, false, pAct);
 	SetPropertyLimits(g_Prop_StepSizeUm, 0.01, 0.5);
+
+	// TODO: add auto-focus property when TTLSwitch is able to support it
 
 	UpdateStatus();
 	initialized = true;
@@ -354,7 +356,7 @@ int CWDIStage::OnLaser(MM::PropertyBase* pProp, MM::ActionType eAct)
 	return DEVICE_OK;
 }
 
-int CWDIStage::AutoFocus(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CWDIStage::OnAutoFocus(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
 	if (eAct == MM::BeforeGet)
 	{
