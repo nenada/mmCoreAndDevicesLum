@@ -171,7 +171,8 @@ int CWDIStage::SetRelativePositionUm(double deltaPos)
 	int ret = ATF_MoveZ(deltaSteps); // relative mode
 	if (ret != AfStatusOK)
 		return ret;
-	long delayMs = (long)std::round(delayPerUmMs * abs(deltaSteps) * stepSizeUm);
+	//long delayMs = (long)std::round(delayPerUmMs * abs(deltaSteps) * stepSizeUm);
+	long delayMs = 10;
 	Sleep(delayMs);
 	currentStepPosition += deltaSteps; // absolute position
 
@@ -201,7 +202,8 @@ int CWDIStage::SetPositionSteps(long steps)
 	int ret = ATF_MoveZ(delta); // relative mode
 	if (ret != AfStatusOK)
 		return ret;
-	long delayMs = (long)std::round(delayPerUmMs * abs(delta) * stepSizeUm);
+	//long delayMs = (long)std::round(delayPerUmMs * abs(delta) * stepSizeUm);
+	long delayMs = 10;
 	Sleep(delayMs);
 	currentStepPosition += delta; // absolute position
 
