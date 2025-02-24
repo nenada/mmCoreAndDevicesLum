@@ -47,7 +47,8 @@ CTTLSwitch::CTTLSwitch() :
    initialized(false),
 	demo(false),
 	engine(0),
-	currentChannel(0)
+	currentChannel(0),
+	afEnabled(false)
 {
    InitializeDefaultErrorMessages();
 
@@ -222,6 +223,12 @@ int CTTLSwitch::Initialize()
 	CreateProperty(g_prop_RunSequence, "0", MM::Integer, false, pAct);
 	SetPropertyLimits(g_prop_RunSequence, 0, 1);
 
+	// enable disable AF
+	pAct = new CPropertyAction(this, &CTTLSwitch::OnAFEnable);
+	CreateProperty(g_prop_AFEnable, "0", MM::Integer, false, pAct);
+	SetPropertyLimits(g_prop_AFEnable, 0, 1);
+
+
    // reset light engine
    // ------------------
 	ret = ZeroAll();
@@ -257,6 +264,11 @@ int CTTLSwitch::Initialize()
 
 		// initially set the first channel
 		ret = SetTTLController(channelLookup[channels[0]], 100.0);
+		if (ret != DEVICE_OK)
+			return ret;
+
+		// initially set the AF enable
+		ret = EnableAF(true); // wdi controls the stage
 		if (ret != DEVICE_OK)
 			return ret;
 	}
@@ -346,6 +358,59 @@ int CTTLSwitch::RunSequence(bool waitForAnswer)
 		if (answer.size() == 0 || answer.at(0) != 'A')
 		{
 			LogMessage("G command failed: " + answer);
+			return ERR_TTL_COMMAND_FAILED;
+		}
+	}
+
+	return DEVICE_OK;
+}
+
+/**
+ * Enable or disable Arduino AF
+ */
+int CTTLSwitch::EnableAF(bool enable, bool waitForAnswer)
+{
+	if (demo)
+		return DEVICE_OK;
+
+	int ret(0);
+	if (enable)
+	{
+		// enable
+		ret = SendSerialCommand(ttlPort.c_str(), "AF1", "\r");
+		LogMessage("Sent AF1 command");
+	}
+	else
+	{
+		// disable
+		ret = SendSerialCommand(ttlPort.c_str(), "AF2", "\r");
+		LogMessage("Sent AF2 command");
+	}
+
+	if (ret != DEVICE_OK)
+	{
+		LogMessage("Failed to send AF command to " + ttlPort);
+		return ret;
+	}
+	else
+	{
+		afEnabled = enable;
+	}
+
+	if (waitForAnswer)
+	{
+		string answer;
+		ret = GetSerialAnswer(ttlPort.c_str(), "\r", answer);
+		LogMessage("Received AF answer: " + answer);
+		if (ret != DEVICE_OK)
+		{
+			LogMessage("Failed to get answer from AF command from " + ttlPort);
+			return ret;
+		}
+		answer.erase(std::remove(answer.begin(), answer.end(), '\n'), answer.end());
+		if (answer.size() == 0 || answer.at(0) != 'A')
+		{
+			LogMessage("AF command failed: " + answer);
 			return ERR_TTL_COMMAND_FAILED;
 		}
 	}
@@ -571,7 +636,7 @@ int CTTLSwitch::OnLabel(MM::PropertyBase* pProp, MM::ActionType eAct)
 	return DEVICE_OK;
 }
 
-int CTTLSwitch::OnSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CTTLSwitch::OnSequence(MM::PropertyBase* /*pProp*/, MM::ActionType /*eAct*/)
 {
 	// TODO: this might not be needed
 	return DEVICE_NOT_YET_IMPLEMENTED;
@@ -766,6 +831,27 @@ int CTTLSwitch::OnRunSequence(MM::PropertyBase* pProp, MM::ActionType eAct)
 		if (val == 1) {
 			// run the sequence
 			return RunSequence(false);
+		}
+	}
+	return DEVICE_OK;
+}
+
+int CTTLSwitch::OnAFEnable(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+	if (eAct == MM::BeforeGet)
+	{
+		pProp->Set(afEnabled ? 1L : 0L); // always false
+	}
+	else if (eAct == MM::AfterSet)
+	{
+		long val(0);
+		pProp->Get(val);
+		if (val == 1) {
+			return EnableAF(true);
+		}
+		else
+		{
+			return EnableAF(false);
 		}
 	}
 	return DEVICE_OK;

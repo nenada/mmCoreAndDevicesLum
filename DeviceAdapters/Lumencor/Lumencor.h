@@ -52,8 +52,9 @@ static const char* g_Prop_FirmwareVersion = "FirmwareVersion";
 static const char* g_Prop_ModuleVersion = "ModuleVersion";
 static const char* g_prop_ChannelSequence = "ChannelSequence";
 static const char* g_prop_RunSequence = "RunSequence";
+static const char* g_prop_AFEnable = "AF_Enable";
 
-#define LUMENCOR_DEV_VERSION "1.0.5"
+#define LUMENCOR_DEV_VERSION "1.0.7"
 
 class LightEngineAPI;
 
@@ -146,13 +147,14 @@ public:
    int OnPort(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnChannelExposure(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnRunSequence(MM::PropertyBase* pProp, MM::ActionType eAct);
-
+   int OnAFEnable(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    int LoadChannelSequence(const std::vector<int>& channelSequence);
    int LoadChannelSequence(const std::vector<std::string>& sequence);
    int SetTTLController(const ChannelInfo& inf, double delayMs=0.0);
    int RunSequence( bool waitForAnswer = true);
+   int EnableAF(bool enable, bool waitForAnswer = true);
 
    void* engine;
    bool initialized;
@@ -164,6 +166,7 @@ private:
    std::map<std::string, ChannelInfo> channelLookup;
    int currentChannel;
    std::string channelSequenceCmd;
+   bool afEnabled;
 
    int RetrieveError();
    int ZeroAll();

@@ -138,7 +138,16 @@ int CWDIStage::Initialize()
 	CreateProperty(g_Prop_StepSizeUm, "0.1", MM::Float, false, pAct);
 	SetPropertyLimits(g_Prop_StepSizeUm, 0.01, 0.5);
 
-	// TODO: add auto-focus property when TTLSwitch is able to support it
+	// set initial values
+	ret = ATF_DisableLaser();
+	if (ret != AfStatusOK)
+		return ret;
+	laserEnable = false;
+
+	ret = ATF_AfStop();
+	if (ret != AfStatusOK)
+		return ret;
+	tracking = false;
 
 	UpdateStatus();
 	initialized = true;
@@ -172,7 +181,7 @@ int CWDIStage::SetRelativePositionUm(double deltaPos)
 	if (ret != AfStatusOK)
 		return ret;
 	//long delayMs = (long)std::round(delayPerUmMs * abs(deltaSteps) * stepSizeUm);
-	long delayMs = 10;
+	long delayMs = 100;
 	Sleep(delayMs);
 	currentStepPosition += deltaSteps; // absolute position
 
@@ -203,7 +212,7 @@ int CWDIStage::SetPositionSteps(long steps)
 	if (ret != AfStatusOK)
 		return ret;
 	//long delayMs = (long)std::round(delayPerUmMs * abs(delta) * stepSizeUm);
-	long delayMs = 10;
+	long delayMs = 100;
 	Sleep(delayMs);
 	currentStepPosition += delta; // absolute position
 
